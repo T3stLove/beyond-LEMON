@@ -157,3 +157,5 @@ def myDropoutLayer(layer):
     rate = config['rate']
     newlayer = keras.layers.Dropout(rate=rate)
     return newlayer
+
+# def myGlobalMaxPooling2DLayer(layer):

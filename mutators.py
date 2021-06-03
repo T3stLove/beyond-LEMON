@@ -39,8 +39,7 @@ def _addOneLayer_Conv2D(model):
 #     return False
 
 def _convOrPooling(layer):
-    if isinstance(layer, keras.layers.MaxPool2D) or \
-       isinstance(layer, keras.layers.AveragePooling2D) or \
+    if isinstance(layer, keras.layers.AveragePooling2D) or \
        isinstance(layer, keras.layers.Conv2D) or \
        isinstance(layer, keras.layers.MaxPooling2D):
        return True
@@ -208,7 +207,6 @@ def _addOneShapeChangingLayer_Conv2D_addConvOrPooling(layers, layer, layersNumbe
        
 def _addOneShapeChangingLayer_Conv2D_addOperation(layers, layer, layersNumber, index):
     if _convOrPooling(layer):
-        print('hi')
         return _addOneShapeChangingLayer_Conv2D_addConvOrPooling(layers, layer, layersNumber, index)
     else:
         return myLayer(layer, modelType='conv2d', definite=False, subType='dense')
@@ -220,15 +218,73 @@ def _addOneShapeChangingLayer_Conv2D(model):
     layers = model.layers
     layersNumber = len(layers)
 
-    # haoyang only considers conv2D
-    while True:
-        insertIndex = np.random.randint(1, layersNumber)
-        if 'Conv2D' not in layers[insertIndex].__class__.__name__ and \
-            'Pooling2D' not in layers[insertIndex].__class__.__name__:
-            continue
-        break
+    '''
+    @haoyang
+    Reconstruct the logic of generating insertIndex:
+    now we can insert conv2d and pooling(not global) 
+    layer before 
+    Flatten/GlobalMaxPooling2D/GlobalAveragePooling2D 
+    layer and insert dense after.
+    For Dropout and BatchNormalization, we can insert
+    them anywhere other than head and tail.
 
-    insertIndex = 9
+    For instance,
+    _________________________________________________________________
+    Layer (type)                 Output Shape              Param #
+    =================================================================
+    conv2d_9 (Conv2D)            (None, 28, 28, 6)         156
+    _________________________________________________________________
+    average_pooling2d_9 (Average (None, 14, 14, 6)         0
+    _________________________________________________________________
+    conv2d_10 (Conv2D)           (None, 10, 10, 16)        2416
+    _________________________________________________________________
+    average_pooling2d_10 (Averag (None, 5, 5, 16)          0
+    _________________________________________________________________
+    flatten_5 (Flatten)          (None, 400)               0
+    _________________________________________________________________
+    dense_13 (Dense)             (None, 120)               48120
+    _________________________________________________________________
+    dropout_5 (Dropout)          (None, 120)               0
+    _________________________________________________________________
+    dense_14 (Dense)             (None, 84)                10164
+    _________________________________________________________________
+    dense_15 (Dense)             (None, 10)                850
+    =================================================================
+    In this model, we can insert conv2d and pooling before flatten_5
+    '''
+    
+    # layerType equals to 1/2/3, corresponding to the layer before flatten
+    # the one after Flatten/GlobalMaxPooling2D/GlobalAveragePooling2D 
+    # and the one whose location is free respectively
+    layerType = np.random.randint(1, 4)
+    head, tail = -1, -1
+    if layerType == 1:
+        head = -1
+        for i, layer in enumerate(layers):
+            if isinstance(layer, keras.layers.Flatten) or \
+                isinstance(layer, keras.layers.GlobalMaxPooling2D) or \
+                 isinstance(layer, keras.layers.GlobalAveragePooling2D):
+                tail = i + 1
+                break
+        if tail == -1:
+            raise Exception(Cyan('tail == -1 -> Cannot find flatten layer in Conv2D model.'))
+    elif layerType == 2:
+        tail = layersNumber
+        for i, layer in enumerate(layers):
+            if isinstance(layer, keras.layers.Flatten) or \
+                isinstance(layer, keras.layers.GlobalMaxPooling2D) or \
+                 isinstance(layer, keras.layers.GlobalAveragePooling2D):
+                head = i + 1
+                break
+        if head == -1:
+            raise Exception(Cyan('head == -1 -> Cannot find flatten layer in Conv2D model.'))
+    elif layerType == 3:
+        head = 1
+        tail = layersNumber
+    else:
+        raise Exception(Cyan(f'Unkown layerType: {str(layerType)}'))
+
+    insertIndex = np.random.randint(head, tail)
 
     print(Red(f'insertIndex = {str(insertIndex)}'))
 

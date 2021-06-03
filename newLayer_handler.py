@@ -31,6 +31,11 @@ def _myConv2DLayer_indefinite_conv_pooling(layer, inputshape, **indefinite_conv_
 def _myConv2DLayer_indefinite_dense(layer, inputshape):
     return myDenseLayer(layer, inputshape, definite=False)
 
+def _myConv2DLayer_indefinite_dropout():
+    pass
+def _myConv2DLayer_indefinite_batchnormalization():
+    pass
+
 def _myConv2DLayer_definite(layer, inputshape):
     newlayer = None
     if isinstance(layer, keras.layers.Dense):
