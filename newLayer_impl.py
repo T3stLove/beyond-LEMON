@@ -152,9 +152,21 @@ def myFlattenLayer(layer):
     newlayer = keras.layers.Flatten(trainable=trainable, dtype=dtype)
     return newlayer
 
-def myDropoutLayer(layer):
-    config = layer.get_config()
-    rate = config['rate']
+def myDropoutLayer(layer, definite=True):
+    if definite:
+        config = layer.get_config()
+        rate = config['rate']
+    else:
+        rate = np.random.choice([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
+    newlayer = keras.layers.Dropout(rate=rate)
+    return newlayer
+
+def mySpatialDropout2DLayer(layer, definite=True):
+    if definite:
+        config = layer.get_config()
+        rate = config['rate']
+    else:
+        rate = np.random.choice([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
     newlayer = keras.layers.Dropout(rate=rate)
     return newlayer
 

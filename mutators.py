@@ -7,45 +7,17 @@ from tensorflow.python.keras.layers.merge import minimum
 from colors import *
 from newLayer_handler import myLayer
 from collections import namedtuple
+from globalInfos import LAYERTYPE1_HEADS,\
+                                LAYERTYPE1_TAILS,\
+                                LAYERTYPE2_HEADS,\
+                                LAYERTYPE2_TAILS,\
+                                LAYERTYPE3_HEADS,\
+                                LAYERTYPE3_TAILS
 
-def addOneLayer(model):
-    return _addOneLayer_Conv2D(model)
+def addOneLayer(model, mod='random', op = None):
+    return _addOneLayer_Conv2D(model, mod, op)
 
-def _addOneLayer_Conv2D(model):
-    return _addOneShapeChangingLayer_Conv2D(model)
-
-# def _convOrPooling(layer):
-#     if isinstance(layer, keras.layers.MaxPool1D) or \
-#        isinstance(layer, keras.layers.MaxPool2D) or \
-#        isinstance(layer, keras.layers.MaxPool3D) or \
-#        isinstance(layer, keras.layers.AveragePooling1D) or \
-#        isinstance(layer, keras.layers.AveragePooling2D) or \
-#        isinstance(layer, keras.layers.AveragePooling3D) or \
-#        isinstance(layer, keras.layers.GlobalAveragePooling1D) or \
-#        isinstance(layer, keras.layers.GlobalAveragePooling2D) or \
-#        isinstance(layer, keras.layers.GlobalAveragePooling3D) or \
-#        isinstance(layer, keras.layers.GlobalMaxPooling1D) or \
-#        isinstance(layer, keras.layers.GlobalMaxPooling2D) or \
-#        isinstance(layer, keras.layers.GlobalMaxPooling3D) or \
-#        isinstance(layer, keras.layers.SeparableConv1D) or \
-#        isinstance(layer, keras.layers.SeparableConv2D) or \
-#        isinstance(layer, keras.layers.DepthwiseConv2D) or \
-#        isinstance(layer, keras.layers.Conv2DTranspose) or \
-#        isinstance(layer, keras.layers.Conv3DTranspose) or \
-#        isinstance(layer, keras.layers.Conv1D) or \
-#        isinstance(layer, keras.layers.Conv2D) or \
-#        isinstance(layer, keras.layers.Conv3D):
-#        return True
-#     return False
-
-def _convOrPooling(layer):
-    if isinstance(layer, keras.layers.AveragePooling2D) or \
-       isinstance(layer, keras.layers.Conv2D) or \
-       isinstance(layer, keras.layers.MaxPooling2D):
-       return True
-    return False
-
-def _addOneShapeChangingLayer_Conv2D_addConvOrPooling_minSize(layers, layersNumber, index):
+def _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index):
     # infos = namedtuple('infos', ['kerpool_size', 'strides', 'padding', 'dilation_rate'])
     # infolist = []
     # print('index, layersNumber: ', index, layersNumber)
@@ -194,96 +166,63 @@ def _decideConv2DOrPoolingParams(layer, minimage_d1, minimage_d2, image_d1, imag
     return kerpool_size, padding, strides, dilation_rate
 
 
-def _addOneShapeChangingLayer_Conv2D_addConvOrPooling(layers, layer, layersNumber, index):
+def _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mod, op):
 
     inputshape = layer.input.shape
     image_d1 = inputshape[1]
     image_d2 = inputshape[2]
-    minimage_d1, minimage_d2 = _addOneShapeChangingLayer_Conv2D_addConvOrPooling_minSize(layers, layersNumber, index)
+    minimage_d1, minimage_d2 = _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index)
     kerpool_size, padding, strides, dilation_rate = _decideConv2DOrPoolingParams(layer, minimage_d1, minimage_d2, image_d1, image_d2)
 
-    return myLayer(layer, modelType='conv2d', definite=False, subType='conv and pooling', \
+    return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mod=mod, op=op, \
         kerpool_size=kerpool_size, padding=padding, strides=strides, dilation_rate=dilation_rate)
-       
-def _addOneShapeChangingLayer_Conv2D_addOperation(layers, layer, layersNumber, index):
-    if _convOrPooling(layer):
-        return _addOneShapeChangingLayer_Conv2D_addConvOrPooling(layers, layer, layersNumber, index)
-    else:
-        return myLayer(layer, modelType='conv2d', definite=False, subType='dense')
-    
 
-def _addOneShapeChangingLayer_Conv2D(model):
+def _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, index, layerType, mod, op):
+    # if _convOrPooling(layer):
+    if layerType == 1:
+        return _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mod, op)
+    elif layerType == 2:
+        return myLayer(layer, modelType='conv2d', definite=False, subType=layerType)
+    # TODO
+    
+def _addOneLayer_Conv2D_analyze_layerType(op):
+    LayerType1 = ['Conv2D', 'AveragePooling2D', 'MaxPooling2D', 'SpatialDropout2D']
+    LayerType2 = ['Dense']
+    LayerType3 = ['Dropout', 'BatchNormalization']
+    if op in LayerType1: return 1
+    elif op in LayerType2: return 2
+    elif op in LayerType3: return 3
+    else:
+        raise Exception(Cyan(f'Unkown op: {op}'))
+
+def _addOneLayer_Conv2D_decide_layerType_and_head_tail(mod, op):
+    
+    if mod == 'random':
+        layerType = np.random.randint(1, 4)
+    elif mod == 'fixed':
+        layerType = _addOneLayer_Conv2D_analyze_layerType(op)  
+    else:
+        raise Exception(Cyan(f'Unkown mod: {mod}'))
+    heads, tails = [], []
+    if layerType == 1:
+        heads, tails = LAYERTYPE1_HEADS, LAYERTYPE1_TAILS
+    elif layerType == 2:
+        heads, tails = LAYERTYPE2_HEADS, LAYERTYPE2_TAILS
+    elif layerType == 3:
+        heads, tails = LAYERTYPE3_HEADS, LAYERTYPE3_TAILS
+    else:
+        raise Exception(Cyan('Unkown '))
+    head_tail_id = np.random.randint(0, len(heads))
+    head, tail = heads[head_tail_id], tails[head_tail_id]
+    return layerType, head, tail
+
+def _addOneLayer_Conv2D(model, mod, op):
 
     newmodel = keras.Sequential()
     layers = model.layers
     layersNumber = len(layers)
-
-    '''
-    @haoyang
-    Reconstruct the logic of generating insertIndex:
-    now we can insert conv2d and pooling(not global) 
-    layer before 
-    Flatten/GlobalMaxPooling2D/GlobalAveragePooling2D 
-    layer and insert dense after.
-    For Dropout and BatchNormalization, we can insert
-    them anywhere other than head and tail.
-
-    For instance,
-    _________________________________________________________________
-    Layer (type)                 Output Shape              Param #
-    =================================================================
-    conv2d_9 (Conv2D)            (None, 28, 28, 6)         156
-    _________________________________________________________________
-    average_pooling2d_9 (Average (None, 14, 14, 6)         0
-    _________________________________________________________________
-    conv2d_10 (Conv2D)           (None, 10, 10, 16)        2416
-    _________________________________________________________________
-    average_pooling2d_10 (Averag (None, 5, 5, 16)          0
-    _________________________________________________________________
-    flatten_5 (Flatten)          (None, 400)               0
-    _________________________________________________________________
-    dense_13 (Dense)             (None, 120)               48120
-    _________________________________________________________________
-    dropout_5 (Dropout)          (None, 120)               0
-    _________________________________________________________________
-    dense_14 (Dense)             (None, 84)                10164
-    _________________________________________________________________
-    dense_15 (Dense)             (None, 10)                850
-    =================================================================
-    In this model, we can insert conv2d and pooling before flatten_5
-    '''
     
-    # layerType equals to 1/2/3, corresponding to the layer before flatten
-    # the one after Flatten/GlobalMaxPooling2D/GlobalAveragePooling2D 
-    # and the one whose location is free respectively
-    layerType = np.random.randint(1, 4)
-    head, tail = -1, -1
-    if layerType == 1:
-        head = -1
-        for i, layer in enumerate(layers):
-            if isinstance(layer, keras.layers.Flatten) or \
-                isinstance(layer, keras.layers.GlobalMaxPooling2D) or \
-                 isinstance(layer, keras.layers.GlobalAveragePooling2D):
-                tail = i + 1
-                break
-        if tail == -1:
-            raise Exception(Cyan('tail == -1 -> Cannot find flatten layer in Conv2D model.'))
-    elif layerType == 2:
-        tail = layersNumber
-        for i, layer in enumerate(layers):
-            if isinstance(layer, keras.layers.Flatten) or \
-                isinstance(layer, keras.layers.GlobalMaxPooling2D) or \
-                 isinstance(layer, keras.layers.GlobalAveragePooling2D):
-                head = i + 1
-                break
-        if head == -1:
-            raise Exception(Cyan('head == -1 -> Cannot find flatten layer in Conv2D model.'))
-    elif layerType == 3:
-        head = 1
-        tail = layersNumber
-    else:
-        raise Exception(Cyan(f'Unkown layerType: {str(layerType)}'))
-
+    layerType, head, tail = _addOneLayer_Conv2D_decide_layerType_and_head_tail(mod, op)
     insertIndex = np.random.randint(head, tail)
 
     print(Red(f'insertIndex = {str(insertIndex)}'))
@@ -300,7 +239,7 @@ def _addOneShapeChangingLayer_Conv2D(model):
         elif i == insertIndex:
             print(Red('Artificial layer construction begins.'))
             print(layer)
-            mylayer_ = _addOneShapeChangingLayer_Conv2D_addOperation(layers, layer, layersNumber, i)
+            mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, i, layerType, mod, op)
             newmodel.add(mylayer_)
             # print(Yellow(str(mylayer_.get_config())))
             print(Red('Artificial layer construction finished.'))
