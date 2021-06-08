@@ -14,8 +14,8 @@ from globalInfos import LAYERTYPE1_HEADS,\
                                 LAYERTYPE3_HEADS,\
                                 LAYERTYPE3_TAILS
 
-def addOneLayer(model, mod='random', op = None):
-    return _addOneLayer_Conv2D(model, mod, op)
+def addOneLayer(model, mode='random', op = None):
+    return _addOneLayer_Conv2D(model, mode, op)
 
 def _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index):
     # infos = namedtuple('infos', ['kerpool_size', 'strides', 'padding', 'dilation_rate'])
@@ -166,7 +166,7 @@ def _decideConv2DOrPoolingParams(layer, minimage_d1, minimage_d2, image_d1, imag
     return kerpool_size, padding, strides, dilation_rate
 
 
-def _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mod, op):
+def _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mode, op):
 
     inputshape = layer.input.shape
     image_d1 = inputshape[1]
@@ -174,13 +174,13 @@ def _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, l
     minimage_d1, minimage_d2 = _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index)
     kerpool_size, padding, strides, dilation_rate = _decideConv2DOrPoolingParams(layer, minimage_d1, minimage_d2, image_d1, image_d2)
 
-    return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mod=mod, op=op, \
+    return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op, \
         kerpool_size=kerpool_size, padding=padding, strides=strides, dilation_rate=dilation_rate)
 
-def _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, index, layerType, mod, op):
+def _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, index, layerType, mode, op):
     # if _convOrPooling(layer):
     if layerType == 1:
-        return _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mod, op)
+        return _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mode, op)
     elif layerType == 2:
         return myLayer(layer, modelType='conv2d', definite=False, subType=layerType)
     # TODO
@@ -195,14 +195,14 @@ def _addOneLayer_Conv2D_analyze_layerType(op):
     else:
         raise Exception(Cyan(f'Unkown op: {op}'))
 
-def _addOneLayer_Conv2D_decide_layerType_and_head_tail(mod, op):
+def _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op):
     
-    if mod == 'random':
+    if mode == 'random':
         layerType = np.random.randint(1, 4)
-    elif mod == 'fixed':
+    elif mode == 'fixed':
         layerType = _addOneLayer_Conv2D_analyze_layerType(op)  
     else:
-        raise Exception(Cyan(f'Unkown mod: {mod}'))
+        raise Exception(Cyan(f'Unkown mode: {mode}'))
     heads, tails = [], []
     if layerType == 1:
         heads, tails = LAYERTYPE1_HEADS, LAYERTYPE1_TAILS
@@ -216,13 +216,13 @@ def _addOneLayer_Conv2D_decide_layerType_and_head_tail(mod, op):
     head, tail = heads[head_tail_id], tails[head_tail_id]
     return layerType, head, tail
 
-def _addOneLayer_Conv2D(model, mod, op):
+def _addOneLayer_Conv2D(model, mode, op):
 
     newmodel = keras.Sequential()
     layers = model.layers
     layersNumber = len(layers)
     
-    layerType, head, tail = _addOneLayer_Conv2D_decide_layerType_and_head_tail(mod, op)
+    layerType, head, tail = _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op)
     insertIndex = np.random.randint(head, tail)
 
     print(Red(f'insertIndex = {str(insertIndex)}'))
@@ -239,7 +239,7 @@ def _addOneLayer_Conv2D(model, mod, op):
         elif i == insertIndex:
             print(Red('Artificial layer construction begins.'))
             print(layer)
-            mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, i, layerType, mod, op)
+            mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, i, layerType, mode, op)
             newmodel.add(mylayer_)
             # print(Yellow(str(mylayer_.get_config())))
             print(Red('Artificial layer construction finished.'))

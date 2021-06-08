@@ -3,13 +3,27 @@ import tensorflow as tf
 import tensorflow.keras as keras
 import tensorflow.keras.backend as K
 from colors import *
+from globalInfos import LAYER_NAME
+
+def _setName(layer):
+    className = layer.__class__.__name__
+    id = -1
+    if className not in LAYER_NAME:
+        LAYER_NAME[className] = 1
+        id = 1
+    else:
+        id = LAYER_NAME[className] 
+        id += 1
+        LAYER_NAME[className] = id
+    return className + '_' + str(id)
 
 def myDenseLayer(layer, inputshape, definite=True):
     config = layer.get_config()
-    newlayer = keras.layers.Dense(units=config['units'], trainable=config['trainable'], \
-                                    dtype=config['dtype'],use_bias=config['use_bias'], \
-                                        activation=config['activation'])
+    if not definite:
+        config['units'] = np.random.randint(1, 101)
+        config['activation'] = np.random.choice(['relu', 'sigmoid', 'tanh', 'selu', 'elu'])
     inputdim = inputshape[-1] if inputshape else layer.input.shape[-1]
+    newlayer = keras.layers.Dense.from_config(config)
     newlayer.build(inputdim)
     # print('>>>', inputdim, layer.output.shape[-1])
     # newlayer.add_weight(shape=(inputdim, layer.output.shape[-1]), initializer="random_normal", trainable=True)
@@ -27,27 +41,18 @@ def myConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
     setweights = True
 
     if indefinite_conv_pooling_kwargs:
-        kernel_size, padding, strides, dilation_rate = indefinite_conv_pooling_kwargs['kerpool_size'], \
+        config['kernel_size'], config['padding'], config['strides'], config['dilation_rate'] = \
+                                                       indefinite_conv_pooling_kwargs['kerpool_size'], \
                                                        indefinite_conv_pooling_kwargs['padding'], \
                                                        indefinite_conv_pooling_kwargs['strides'], \
                                                        indefinite_conv_pooling_kwargs['dilation_rate']
-        filters = np.random.randint(1, 11) 
-        activation = np.random.choice(['relu', 'sigmoid', 'tanh', 'selu', 'elu'])
-        dtype = 'float32'
-        trainable = True
-        use_bias = True
-        setweights = False
-    else:
-        filters = config['filters']
-        kernel_size = config['kernel_size']
-        strides = config['strides']
-        padding = config['padding']
-        activation = config['activation']
-        dtype = config['dtype']
-        trainable = config['trainable']
-        use_bias = config['use_bias']
-        dilation_rate = config['dilation_rate']
-
+        config['filters'] = np.random.randint(1, 11) 
+        config['activation'] = np.random.choice(['relu', 'sigmoid', 'tanh', 'selu', 'elu'])
+        config['dtype'] = 'float32'
+        config['trainable'] = True
+        config['use_bias'] = True
+        config['setweights'] = False
+    
     if not inputshape or inputshape[1:] == layer.input.shape[1:]:
         pass
     else:
@@ -56,26 +61,17 @@ def myConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
             param_inputshape = inputshape
             setweights = False
         else:
-            kernel_size = (inputshape[1]-layer.output.shape[1]+1,\
+            config['kernel_size'] = (inputshape[1]-layer.output.shape[1]+1,\
                             inputshape[2]-layer.output.shape[2]+1)
             param_inputshape = inputshape
             setweights = False
-            dilation_rate = (1,1)
-            strides = (1,1)
+            config['dilation_rate'] = (1,1)
+            config['strides'] = (1,1)
 
-    newlayer = keras.layers.Conv2D(filters=filters, kernel_size=kernel_size,\
-                                        strides=strides, padding=padding,\
-                                        activation=activation, dtype=dtype,\
-                                        trainable=trainable, use_bias=use_bias,\
-                                        dilation_rate = dilation_rate)
+    config['name'] = _setName(layer)
+    newlayer = keras.layers.Conv2D.from_config(config)
     
     newlayer.build(param_inputshape)
-                            
-    # print(Red(str([kernel_size[0], kernel_size[1], param_inputshape[-1], filters])))
-    # newlayer.add_weight(shape=(kernel_size[0], kernel_size[1], param_inputshape[-1], filters), \
-    #                     initializer="random_normal", trainable=True)
-    # if use_bias:
-    #     newlayer.add_weight(shape=(filters, ), initializer="random_normal", trainable=True)
     if setweights:
         newlayer.set_weights(layer.get_weights())
     return newlayer
@@ -83,20 +79,13 @@ def myConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
 def myAveragePooling2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
     config = layer.get_config()
     
-
     if indefinite_conv_pooling_kwargs:
-        pool_size, padding, strides = indefinite_conv_pooling_kwargs['kerpool_size'], \
+        config['pool_size'], config['padding'], config['strides'] = \
+                                      indefinite_conv_pooling_kwargs['kerpool_size'], \
                                       indefinite_conv_pooling_kwargs['padding'], \
                                       indefinite_conv_pooling_kwargs['strides']
-        dtype = 'float32'
-        trainable = True
-
-    else:
-        pool_size = config['pool_size']
-        strides = config['strides']
-        padding = config['padding']
-        trainable = config['trainable']
-        dtype = config['dtype']
+        config['dtype'] = 'float32'
+        config['trainable'] = True
 
     if not inputshape or inputshape[1:] == layer.input.shape[1:]:
         pass
@@ -104,31 +93,24 @@ def myAveragePooling2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs)
         if inputshape[1:-1] == layer.input.shape[1:-1]:
             pass
         else:
-            pool_size = (inputshape[1]-layer.output.shape[1]+1, \
+            config['pool_size'] = (inputshape[1]-layer.output.shape[1]+1, \
                         inputshape[2]-layer.output.shape[2]+1)
-            strides = (1,1)
-            padding = 'valid'
+            config['strides'] = (1,1)
+            config['padding'] = 'valid'
 
-    newlayer = keras.layers.AveragePooling2D(pool_size=pool_size, strides=strides, padding=padding, \
-                                             trainable=trainable, dtype=dtype)
+    config['name'] = _setName(layer)
+    newlayer = keras.layers.MaxPooling2D.from_config(config)
     return newlayer
 
 def myMaxPooling2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
     config = layer.get_config()
-    
-
     if indefinite_conv_pooling_kwargs:
-        pool_size, padding, strides = indefinite_conv_pooling_kwargs['kerpool_size'], \
+        config['pool_size'], config['padding'], config['strides'] = \
+                                      indefinite_conv_pooling_kwargs['kerpool_size'], \
                                       indefinite_conv_pooling_kwargs['padding'], \
                                       indefinite_conv_pooling_kwargs['strides']
-        dtype = 'float32'
-        trainable = True
-    else:
-        pool_size = config['pool_size']
-        strides = config['strides']
-        padding = config['padding']
-        trainable = config['trainable']
-        dtype = config['dtype']
+        config['dtype'] = 'float32'
+        config['trainable'] = True
 
     if not inputshape or inputshape[1:] == layer.input.shape[1:]:
         pass
@@ -136,38 +118,40 @@ def myMaxPooling2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
         if inputshape[1:-1] == layer.input.shape[1:-1]:
             pass
         else:
-            pool_size = (inputshape[1]-layer.output.shape[1]+1, \
+            config['pool_size'] = (inputshape[1]-layer.output.shape[1]+1, \
                         inputshape[2]-layer.output.shape[2]+1)
-            strides = (1,1)
-            padding = 'valid'
-
-    newlayer = keras.layers.MaxPooling2D(pool_size=pool_size, strides=strides, padding=padding, \
-                                             trainable=trainable, dtype=dtype)
+            config['strides'] = (1,1)
+            config['padding'] = 'valid'
+    
+    config['name'] = _setName(layer)
+    newlayer = keras.layers.MaxPooling2D.from_config(config)
     return newlayer
 
 def myFlattenLayer(layer):
     config = layer.get_config()
-    trainable = config['trainable']
-    dtype = config['dtype']
-    newlayer = keras.layers.Flatten(trainable=trainable, dtype=dtype)
+    config['name'] = _setName(layer)
+    newlayer = keras.layers.Flatten.from_config(config)
     return newlayer
 
 def myDropoutLayer(layer, definite=True):
-    if definite:
-        config = layer.get_config()
-        rate = config['rate']
-    else:
-        rate = np.random.choice([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
-    newlayer = keras.layers.Dropout(rate=rate)
+    config = layer.get_config()
+    if not definite:
+        config['rate'] = np.random.choice([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
+    config['name'] = _setName(layer)
+    newlayer = keras.layers.Dropout.from_config(config)
     return newlayer
 
 def mySpatialDropout2DLayer(layer, definite=True):
-    if definite:
-        config = layer.get_config()
-        rate = config['rate']
-    else:
-        rate = np.random.choice([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
-    newlayer = keras.layers.Dropout(rate=rate)
+    config = layer.get_config()
+    if not definite:
+        config['rate'] = np.random.choice([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
+    config['name'] = _setName(layer)
+    newlayer = keras.layers.Dropout.from_config(config)
     return newlayer
 
 # def myGlobalMaxPooling2DLayer(layer):
+
+def myBatchNormalizationLayer(layer, inputshape, definite=True):
+    # config = layer.get_config()
+    # if not 
+    pass

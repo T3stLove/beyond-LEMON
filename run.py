@@ -7,7 +7,8 @@ from colors import *
 from mutators import addOneLayer
 import os, subprocess
 from globalInfos import type123_heads_tails_extraction,\
-                        config_extraction
+                        config_extraction,\
+                        extra_info_extraction
 from globalInfos import MODELNAMES,\
                         MOD,\
                         ORIGIN_PATH,\
@@ -53,7 +54,7 @@ def run_fixed_mod():
         for op in OPSPOOL:
             for cnt in range(1, upperbound):
                 if order == 1:
-                    newmodel = addOneLayer(model, mod = 'fixed', op = op)
+                    newmodel = addOneLayer(model, mode = 'fixed', op = op)
                     dest = os.path.join(MUTANT_PATH, str(order))
                     if not os.path.exists(dest):
                         subprocess.check_output(f'mkdir -p {dest}', shell=True)
@@ -83,6 +84,7 @@ def run_fixed_mod():
 if __name__ == '__main__':
 
     config_extraction()
+    extra_info_extraction()
 
     for modelname in MODELNAMES:
         
@@ -96,4 +98,4 @@ if __name__ == '__main__':
             upperbound = EACHNUMBER + 1
             run_fixed_mod()
         else:
-            raise Exception(Cyan(f'Unkown mod: {MOD}'))
+            raise Exception(Cyan(f'Unkown mode: {MODE}'))

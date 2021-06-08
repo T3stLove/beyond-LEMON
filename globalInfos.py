@@ -44,6 +44,8 @@ without shape limitation
 
 '''
 
+LAYER_NAME = {}
+
 LAYERTYPE1_HEADS = []
 LAYERTYPE1_TAILS = []
 
@@ -54,7 +56,7 @@ LAYERTYPE3_HEADS = []
 LAYERTYPE3_TAILS = []
 
 MODELNAMES = None
-MOD = None
+MODE = None
 ORIGIN_PATH = None
 MUTANT_PATH = None
 ORDERS = None
@@ -62,13 +64,17 @@ OPSPOOL = None
 TOTALNUMBER = None
 EACHNUMBER = None
 
+CONV2D_TYPE_1_POOL = []
+CONV2D_TYPE_2_POOL = []
+CONV2D_TYPE_3_POOL = []
+
 def config_extraction():
-    global MODELNAMES, MOD, ORIGIN_PATH, MUTANT_PATH, ORDERS, OPSPOOL, TOTALNUMBER, EACHNUMBER
+    global MODELNAMES, MODE, ORIGIN_PATH, MUTANT_PATH, ORDERS, OPSPOOL, TOTALNUMBER, EACHNUMBER
     parser = configparser.ConfigParser()
     parser.read('config.conf')
     params = parser['params']
     MODELNAMES = params['models'].split('\n')
-    MOD = params['mod']
+    MODE = params['mode']
     ORIGIN_PATH = params['origin_path']
     MUTANT_PATH = params['mutant_path']
     ORDERS = params['orders'].split('\n')
@@ -76,6 +82,16 @@ def config_extraction():
     TOTALNUMBER = parser['random']['totalNumber']
     EACHNUMBER = parser['fixed']['eachNumber']
 
+def extra_info_extraction():
+    for op in OPSPOOL:
+        if op == 'Dense': CONV2D_TYPE_2_POOL.append(op)
+        elif op == 'Conv2D': CONV2D_TYPE_1_POOL.append(op)
+        elif op == 'AveragePooling2D': CONV2D_TYPE_1_POOL.append(op)
+        elif op == 'MaxPooling2D': CONV2D_TYPE_1_POOL.append(op)
+        elif op == 'Dropout': CONV2D_TYPE_3_POOL.append(op)
+        elif op == 'SpatialDropout2D': CONV2D_TYPE_1_POOL.append(op)
+        else:
+            raise Exception(Cyan(f'Unkown op: {op}'))
 
 def _type1_heads_tails_extraction(layers):
     global LAYERTYPE1_HEADS, LAYERTYPE1_TAILS
