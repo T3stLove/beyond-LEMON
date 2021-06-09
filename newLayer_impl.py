@@ -28,7 +28,7 @@ def _getConfig(layerclass):
                             'bias_regularizer': None, 'activity_regularizer': None, 'kernel_constraint': None, 'bias_constraint': None}
     if className == 'SeparableConv2D':
         return {'name': 'separable_conv2d', 'trainable': True, 'dtype': 'float32', 'filters': 1,
-                'kernel_size': (1, 1), 'strides': (1, 1), 'padding': 'same', 'data_format': 'channels_last',
+                'kernel_size': (1, 1), 'strides': (1, 1), 'padding': 'valid', 'data_format': 'channels_last',
                 'dilation_rate': (1, 1), 'groups': 1, 'activation': 'relu', 'use_bias': True,
                 'kernel_initializer': {'class_name': 'GlorotUniform', 'config': {'seed': None}},
                 'bias_initializer': {'class_name': 'Zeros', 'config': {}}, 'kernel_regularizer': None,
