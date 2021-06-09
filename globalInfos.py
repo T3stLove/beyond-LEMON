@@ -43,17 +43,19 @@ only for 2-dimensional input shape
 without shape limitation
 
 '''
+DATA_FORMAT = None
+DTYPE = None
 
 LAYER_NAME = {}
 
-LAYERTYPE1_HEADS = []
-LAYERTYPE1_TAILS = []
+CONV2D_LAYERTYPE1_HEADS = []
+CONV2D_LAYERTYPE1_TAILS = []
 
-LAYERTYPE2_HEADS = []
-LAYERTYPE2_TAILS = []
+CONV2D_LAYERTYPE2_HEADS = []
+CONV2D_LAYERTYPE2_TAILS = []
 
-LAYERTYPE3_HEADS = []
-LAYERTYPE3_TAILS = []
+CONV2D_LAYERTYPE3_HEADS = []
+CONV2D_LAYERTYPE3_TAILS = []
 
 MODELNAMES = None
 MODE = None
@@ -71,7 +73,7 @@ CONV2D_TYPE_3_POOL = []
 def config_extraction():
     global MODELNAMES, MODE, ORIGIN_PATH, MUTANT_PATH, ORDERS, OPSPOOL, TOTALNUMBER, EACHNUMBER
     parser = configparser.ConfigParser()
-    parser.read('config.conf')
+    parser.read('./config.conf')
     params = parser['params']
     MODELNAMES = params['models'].split('\n')
     MODE = params['mode']
@@ -84,63 +86,66 @@ def config_extraction():
 
 def extra_info_extraction():
     for op in OPSPOOL:
-        if op == 'Dense': CONV2D_TYPE_2_POOL.append(op)
-        elif op == 'Conv2D': CONV2D_TYPE_1_POOL.append(op)
-        elif op == 'AveragePooling2D': CONV2D_TYPE_1_POOL.append(op)
-        elif op == 'MaxPooling2D': CONV2D_TYPE_1_POOL.append(op)
-        elif op == 'Dropout': CONV2D_TYPE_3_POOL.append(op)
-        elif op == 'SpatialDropout2D': CONV2D_TYPE_1_POOL.append(op)
+        if op == 'Conv2D' or op == 'AveragePooling2D' or op == 'MaxPooling2D' \
+            or op == 'SpatialDropout2D':
+            CONV2D_TYPE_1_POOL.append(op)
+        elif op == 'Dense':
+            CONV2D_TYPE_2_POOL.append(op)
+        elif op == 'Dropout' or op == 'BatchNormalization' or op == 'LayerNormalization':
+            CONV2D_TYPE_3_POOL.append(op)
         else:
             raise Exception(Cyan(f'Unkown op: {op}'))
 
 def _type1_heads_tails_extraction(layers):
-    global LAYERTYPE1_HEADS, LAYERTYPE1_TAILS
+    global CONV2D_LAYERTYPE1_HEADS, CONV2D_LAYERTYPE1_TAILS
     on = False
     for i in range(len(layers)):
         if i == 0:
             on = True
-            LAYERTYPE1_HEADS.append(i)
+            CONV2D_LAYERTYPE1_HEADS.append(i)
         else:
             preLayer = layers[i-1]
             if len(preLayer.output.shape) == 4:
                 if not on:
                     on = True
-                    LAYERTYPE1_HEADS.append(i)
+                    CONV2D_LAYERTYPE1_HEADS.append(i)
             elif len(preLayer.output.shape) == 2:
                 if on:
                     on = False
-                    LAYERTYPE1_TAILS.append(i+1)
-    if LAYERTYPE1_TAILS == []:
-        raise Exception(Cyan('tails == [] -> Cannot find flatten layer in Conv2D model.'))
-    if len(LAYERTYPE1_TAILS) != len(LAYERTYPE1_HEADS):
-        raise Exception(Cyan(f'heads length: {str(len(LAYERTYPE1_HEADS))}, tails length: {str(len(LAYERTYPE1_TAILS))}, they are inconsistent'))
+                    CONV2D_LAYERTYPE1_TAILS.append(i)
+    print(Red('1'), CONV2D_LAYERTYPE1_HEADS, CONV2D_LAYERTYPE1_TAILS)
+    if CONV2D_LAYERTYPE1_TAILS == []:
+        raise Exception(Cyan('tails == []'))
+    if len(CONV2D_LAYERTYPE1_TAILS) != len(CONV2D_LAYERTYPE1_HEADS):
+        raise Exception(Cyan(f'heads length: {str(len(CONV2D_LAYERTYPE1_HEADS))}, tails length: {str(len(CONV2D_LAYERTYPE1_TAILS))}, they are inconsistent'))
 
 def _type2_heads_tails_extraction(layers):
-    global LAYERTYPE2_HEADS, LAYERTYPE2_TAILS
+    global CONV2D_LAYERTYPE2_HEADS, CONV2D_LAYERTYPE2_TAILS
     on = False
     for i in range(len(layers)):
         if i == 0:
-            on = True
-            LAYERTYPE2_HEADS.append(i)
+            pass
         else:
             preLayer = layers[i-1]
             if len(preLayer.output.shape) == 2:
                 if not on:
                     on = True
-                    LAYERTYPE2_HEADS.append(i)
+                    CONV2D_LAYERTYPE2_HEADS.append(i)
             elif len(preLayer.output.shape) == 4:
                 if on:
                     on = False
-                    LAYERTYPE2_TAILS.append(i+1)
-    if LAYERTYPE2_TAILS == []:
-        raise Exception(Cyan('tails == [] -> Cannot find flatten layer in Conv2D model.'))
-    if len(LAYERTYPE2_TAILS) != len(LAYERTYPE2_HEADS):
-        raise Exception(Cyan(f'heads length: {str(len(LAYERTYPE2_HEADS))}, tails length: {str(len(LAYERTYPE2_TAILS))}, they are inconsistent'))
+                    CONV2D_LAYERTYPE2_TAILS.append(i)
+    CONV2D_LAYERTYPE2_TAILS.append(len(layers))
+    print(Red('2'), CONV2D_LAYERTYPE2_HEADS, CONV2D_LAYERTYPE2_TAILS)
+    if CONV2D_LAYERTYPE2_TAILS == []:
+        raise Exception(Cyan('tails == []'))
+    if len(CONV2D_LAYERTYPE2_TAILS) != len(CONV2D_LAYERTYPE2_HEADS):
+        raise Exception(Cyan(f'heads length: {str(len(CONV2D_LAYERTYPE2_HEADS))}, tails length: {str(len(CONV2D_LAYERTYPE2_TAILS))}, they are inconsistent'))
 
 def _type3_heads_tails_extraction(layersNumber):
-    global LAYERTYPE3_HEADS, LAYERTYPE3_TAILS
-    LAYERTYPE3_HEADS.append(0)
-    LAYERTYPE3_TAILS.append(layersNumber)
+    global CONV2D_LAYERTYPE3_HEADS, CONV2D_LAYERTYPE3_TAILS
+    CONV2D_LAYERTYPE3_HEADS.append(0)
+    CONV2D_LAYERTYPE3_TAILS.append(layersNumber)
 
 def type123_heads_tails_extraction(layers, layersNumber):
     _type1_heads_tails_extraction(layers)
