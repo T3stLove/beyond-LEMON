@@ -86,7 +86,7 @@ def config_extraction():
 
 def extra_info_extraction():
     for op in OPSPOOL:
-        if op == 'Conv2D' or op == 'AveragePooling2D' or op == 'MaxPooling2D' \
+        if op == 'Conv2D' or op == 'SeparableConv2D' or op == 'AveragePooling2D' or op == 'MaxPooling2D' \
             or op == 'SpatialDropout2D':
             CONV2D_TYPE_1_POOL.append(op)
         elif op == 'Dense':

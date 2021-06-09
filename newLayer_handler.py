@@ -5,6 +5,7 @@ from newLayer_impl import *
 def _myConv2DLayer_op_to_newlayer(op):
     if op == 'Dense': return myDenseLayer
     elif op == 'Conv2D': return myConv2DLayer
+    elif op == 'SeparableConv2D':return mySeparableConv2DLayer
     elif op == 'AveragePooling2D': return myAveragePooling2DLayer
     elif op == 'MaxPooling2D': return myMaxPooling2DLayer
     elif op == 'Dropout': return myDropoutLayer

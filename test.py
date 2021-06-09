@@ -16,13 +16,16 @@ import os
 #     model = keras.models.load_model(modelpath)
 #     model.summary()
 
-modelpath = '/home/lisa/MHYmutation/lenet5-mnist/1/lenet5-mnist_Conv2D_1.h5'
+modelpath = '/share_container/share_host_hy2/MHYmutation_2021_5_13/lenet5-mnist/1/lenet5-mnist_41.h5'
+modelpath = 'D:\server-backup-137\data\Mutation\lenet5-mnist/1/lenet5-mnist_Conv2D_1.h5'
 # modelpath = '/home/lisa/origin_model/lenet5-mnist_origin.h5'
 # modelpath = '/home/lisa/origin_model/mobilenet.1.00.224-imagenet_origin.h5'
+# modelpath = '/share_container/destination/New-mutators/SQC_mutation_2021_6_5/2/lenet5-mnist_5_5.h5'
 model = keras.models.load_model(modelpath)
-
 print(model.summary())
-
+modelpath = 'D:\server-backup-137\data\keras_model\lenet5-mnist_origin.h5'
+model = keras.models.load_model(modelpath)
+print(model.summary())
 # newlayer = keras.layers.Conv2D(1, 2)
 # print(newlayer.get_config())
 # print(model.layers[0].get_config())
