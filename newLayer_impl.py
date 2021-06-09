@@ -26,6 +26,19 @@ def _getConfig(layerclass):
                     'kernel_initializer': {'class_name': 'GlorotUniform', 'config': {'seed': None}}, \
                         'bias_initializer': {'class_name': 'Zeros', 'config': {}}, 'kernel_regularizer': None, \
                             'bias_regularizer': None, 'activity_regularizer': None, 'kernel_constraint': None, 'bias_constraint': None}
+    if className == 'SeparableConv2D':
+        return {'name': 'separable_conv2d', 'trainable': True, 'dtype': 'float32', 'filters': 1,
+                'kernel_size': (1, 1), 'strides': (1, 1), 'padding': 'same', 'data_format': 'channels_last',
+                'dilation_rate': (1, 1), 'groups': 1, 'activation': 'relu', 'use_bias': True,
+                'kernel_initializer': {'class_name': 'GlorotUniform', 'config': {'seed': None}},
+                'bias_initializer': {'class_name': 'Zeros', 'config': {}}, 'kernel_regularizer': None,
+                'bias_regularizer': None, 'activity_regularizer': None, 'kernel_constraint': None,
+                'bias_constraint': None, 'depth_multiplier': 1,
+                'depthwise_initializer': {'class_name': 'GlorotUniform', 'config': {'seed': None}},
+                'pointwise_initializer': {'class_name': 'GlorotUniform', 'config': {'seed': None}},
+                'depthwise_regularizer': None, 'pointwise_regularizer': None, 'depthwise_constraint': None,
+                'pointwise_constraint': None}
+
     elif className == 'Dense':
         return {'name': 'dense', 'trainable': True, 'dtype': 'float32', 'units': 10, 'activation': 'linear', \
             'use_bias': True, 'kernel_initializer': {'class_name': 'GlorotUniform', 'config': {'seed': None}}, \
@@ -61,7 +74,8 @@ def _getConfig(layerclass):
 
 def _setExtraConfigInfo(layerclass, config):
     className = layerclass.__name__
-    if className == 'Conv2D' or className == 'AveragePooling2D' or className == 'MaxPooling2D':
+    if className == 'Conv2D' or className == 'SeparableConv2D' \
+            or className == 'AveragePooling2D' or className == 'MaxPooling2D':
         from globalInfos import DATA_FORMAT
         config['data_format'] = DATA_FORMAT
     from globalInfos import DTYPE
@@ -124,6 +138,50 @@ def myConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
     newlayer = keras.layers.Conv2D.from_config(config)
     newlayer.build(param_inputshape)
                             
+    # print(Red(str([kernel_size[0], kernel_size[1], param_inputshape[-1], filters])))
+    # newlayer.add_weight(shape=(kernel_size[0], kernel_size[1], param_inputshape[-1], filters), \
+    #                     initializer="random_normal", trainable=True)
+    # if use_bias:
+    #     newlayer.add_weight(shape=(filters, ), initializer="random_normal", trainable=True)
+    if setweights:
+        newlayer.set_weights(layer.get_weights())
+    return newlayer
+
+def mySeparableConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
+    param_inputshape = layer.input.shape
+    setweights = True
+
+    if indefinite_conv_pooling_kwargs:
+        config = _getConfig(keras.layers.SeparableConv2D)
+        config['kernel_size'], config['padding'], config['strides'], config['dilation_rate'] = \
+            indefinite_conv_pooling_kwargs['kerpool_size'], \
+            indefinite_conv_pooling_kwargs['padding'], \
+            indefinite_conv_pooling_kwargs['strides'], \
+            indefinite_conv_pooling_kwargs['dilation_rate']
+        config['filters'] = np.random.randint(1, 11)
+        config['activation'] = np.random.choice(['relu', 'sigmoid', 'tanh', 'selu', 'elu'])
+        setweights = False
+    else:
+        config = layer.get_config()
+
+    if not inputshape or inputshape[1:] == layer.input.shape[1:]:
+        pass
+    else:
+        setweights = False
+        if inputshape[1:-1] == layer.input.shape[1:-1]:
+            param_inputshape = inputshape
+        else:
+            config['kernel_size'] = (inputshape[1]-layer.output.shape[1]+1, \
+                                     inputshape[2]-layer.output.shape[2]+1)
+            param_inputshape = inputshape
+            config['dilation_rate'] = (1,1)
+            config['strides'] = (1,1)
+
+    config['name'] = _setName(keras.layers.SeparableConv2D)
+    _setExtraConfigInfo(keras.layers.SeparableConv2D, config)
+    newlayer = keras.layers.SeparableConv2D.from_config(config)
+    newlayer.build(param_inputshape)
+
     # print(Red(str([kernel_size[0], kernel_size[1], param_inputshape[-1], filters])))
     # newlayer.add_weight(shape=(kernel_size[0], kernel_size[1], param_inputshape[-1], filters), \
     #                     initializer="random_normal", trainable=True)

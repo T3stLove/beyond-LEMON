@@ -14,7 +14,7 @@ def addOneLayer(model, mode='random', op = None):
     return _addOneLayer_Conv2D(model, mode, op)
 
 def _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index):
-    
+
     nextLayer = layers[index]
     # haoyang only considers Conv2D, maxpooling and averagepooling
     if not isinstance(nextLayer, keras.layers.Conv2D) and \
@@ -96,7 +96,7 @@ def _decideConv2DOrPoolingParams(op, minimage_d1, minimage_d2, image_d1, image_d
 
     if op == 'AveragePooling2D' or op == 'MaxPooling2D':
         dilation_or_strides = 'strides'
-    elif op == 'Conv2D':
+    elif op == 'Conv2D' or op == 'SeparableConv2D':
         dilation_or_strides = np.random.choice(['dilation_rate', 'strides'])
     else:
         raise Exception(Cyan(f'Unexpected op: {op}'))
