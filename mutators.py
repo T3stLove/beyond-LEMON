@@ -5,94 +5,15 @@ import tensorflow.keras as keras
 import tensorflow.keras.backend as K
 from tensorflow.python.keras.layers.merge import minimum
 from colors import *
+import globalInfos
 from newLayer_handler import myLayer
 from collections import namedtuple
+import globalInfos
 
-def addOneLayer(model):
-    return _addOneLayer_Conv2D(model)
+def addOneLayer(model, mode='random', op = None):
+    return _addOneLayer_Conv2D(model, mode, op)
 
-def _addOneLayer_Conv2D(model):
-    return _addOneShapeChangingLayer_Conv2D(model)
-
-# def _convOrPooling(layer):
-#     if isinstance(layer, keras.layers.MaxPool1D) or \
-#        isinstance(layer, keras.layers.MaxPool2D) or \
-#        isinstance(layer, keras.layers.MaxPool3D) or \
-#        isinstance(layer, keras.layers.AveragePooling1D) or \
-#        isinstance(layer, keras.layers.AveragePooling2D) or \
-#        isinstance(layer, keras.layers.AveragePooling3D) or \
-#        isinstance(layer, keras.layers.GlobalAveragePooling1D) or \
-#        isinstance(layer, keras.layers.GlobalAveragePooling2D) or \
-#        isinstance(layer, keras.layers.GlobalAveragePooling3D) or \
-#        isinstance(layer, keras.layers.GlobalMaxPooling1D) or \
-#        isinstance(layer, keras.layers.GlobalMaxPooling2D) or \
-#        isinstance(layer, keras.layers.GlobalMaxPooling3D) or \
-#        isinstance(layer, keras.layers.SeparableConv1D) or \
-#        isinstance(layer, keras.layers.SeparableConv2D) or \
-#        isinstance(layer, keras.layers.DepthwiseConv2D) or \
-#        isinstance(layer, keras.layers.Conv2DTranspose) or \
-#        isinstance(layer, keras.layers.Conv3DTranspose) or \
-#        isinstance(layer, keras.layers.Conv1D) or \
-#        isinstance(layer, keras.layers.Conv2D) or \
-#        isinstance(layer, keras.layers.Conv3D):
-#        return True
-#     return False
-
-def _convOrPooling(layer):
-    if isinstance(layer, keras.layers.MaxPool2D) or \
-       isinstance(layer, keras.layers.AveragePooling2D) or \
-       isinstance(layer, keras.layers.Conv2D) or \
-       isinstance(layer, keras.layers.MaxPooling2D):
-       return True
-    return False
-
-def _addOneShapeChangingLayer_Conv2D_addConvOrPooling_minSize(layers, layersNumber, index):
-    # infos = namedtuple('infos', ['kerpool_size', 'strides', 'padding', 'dilation_rate'])
-    # infolist = []
-    # print('index, layersNumber: ', index, layersNumber)
-    # for j in range(index, layersNumber):
-    #     _layer_ = layers[j]
-    #     if not _convOrPooling(_layer_):
-    #         break
-    #     config = _layer_.get_config()
-    #     if 'Conv2D' in _layer_.__class__.__name__:
-    #         infolist.append(infos(config['kernel_size'], config['strides'], config['padding'], config['dilation_rate']))
-    #     elif 'Pooling2D' in _layer_.__class__.__name__ and 'Global' not in _layer_.__class__.__name__:
-    #         infolist.append(infos(config['pool_size'], config['strides'], config['padding'], None))
-    #     else:
-    #         raise Exception(Cyan('Unprocessed _layer_.__class__'))
-    # minimage_d1 = 1
-    # minimage_d2 = 1
-    # print('infolist length:', len(infolist))
-    # for info in infolist[::-1]:
-    #     kerpool_size = info.kerpool_size
-    #     strides = info.strides
-    #     padding = info.padding
-    #     dilation_rate = info.dilation_rate
-    #     if padding == 'valid':
-    #         if dilation_rate:
-    #             if dilation_rate != (1,1) and strides == (1,1):
-    #                 minimage_d1 = minimage_d1-1+kerpool_size[0]+(kerpool_size[0]-1)*(dilation_rate[0]-1)
-    #                 minimage_d2 = minimage_d2-1+kerpool_size[1]+(kerpool_size[1]-1)*(dilation_rate[1]-1)
-    #             elif dilation_rate == (1,1) and strides != (1,1):
-    #                 minimage_d1 = (minimage_d1-1)*strides[0]+kerpool_size[0]
-    #                 minimage_d2 = (minimage_d2-1)*strides[1]+kerpool_size[1]
-    #             elif dilation_rate == (1,1) and strides == (1,1):
-    #                 minimage_d1 = minimage_d1-1+kerpool_size[0]
-    #                 minimage_d2 = minimage_d2-1+kerpool_size[1]
-    #             else:
-    #                 raise Exception(Cyan('Conflict between dilation_rate and strides'))
-    #         else:
-    #             minimage_d1 = (minimage_d1-1)*strides[0]+kerpool_size[0]
-    #             minimage_d2 = (minimage_d2-1)*strides[1]+kerpool_size[1]
-
-    #     elif padding == 'same':
-    #         minimage_d1 = max(minimage_d1, kerpool_size[0])
-    #         minimage_d2 = max(minimage_d2, kerpool_size[1])
-    #     else:
-    #         raise Exception(Cyan('Unprocessed padding type'))
-        
-    #     print('>>>>>', minimage_d1, minimage_d1)
+def _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index):
     
     nextLayer = layers[index]
     # haoyang only considers Conv2D, maxpooling and averagepooling
@@ -162,7 +83,7 @@ def _decideConv2DOrPoolingParams_dilation_rate(image_d1, image_d2, minikerpool_s
     return kerpool_size, dilation_rate
 
 
-def _decideConv2DOrPoolingParams(layer, minimage_d1, minimage_d2, image_d1, image_d2):
+def _decideConv2DOrPoolingParams(op, minimage_d1, minimage_d2, image_d1, image_d2):
 
     if minimage_d1 > image_d1 or minimage_d2 > image_d2:
         raise Exception(Cyan('Cannot insert a conv or pooling layer here. Required minimum output size is larger than the input size!'))
@@ -173,12 +94,12 @@ def _decideConv2DOrPoolingParams(layer, minimage_d1, minimage_d2, image_d1, imag
     padding = 'valid'
     strides, dilation_rate = (1, 1), (1, 1) 
 
-    if 'Pooling2D' in layer.__class__.__name__ and 'Global' not in layer.__class__.__name__:
+    if op == 'AveragePooling2D' or op == 'MaxPooling2D':
         dilation_or_strides = 'strides'
-    elif 'Conv2D' in layer.__class__.__name__:
+    elif op == 'Conv2D':
         dilation_or_strides = np.random.choice(['dilation_rate', 'strides'])
     else:
-        raise Exception(Cyan('Unprocessed _layer_.__class__'))
+        raise Exception(Cyan(f'Unexpected op: {op}'))
 
     # maxikerpool_size exists when strides = (1,1)
     maxikerpool_size = (image_d1-output_d1+1, image_d2-output_d2+1)
@@ -195,42 +116,101 @@ def _decideConv2DOrPoolingParams(layer, minimage_d1, minimage_d2, image_d1, imag
     return kerpool_size, padding, strides, dilation_rate
 
 
-def _addOneShapeChangingLayer_Conv2D_addConvOrPooling(layers, layer, layersNumber, index):
+def _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mode, op):
 
     inputshape = layer.input.shape
     image_d1 = inputshape[1]
     image_d2 = inputshape[2]
-    minimage_d1, minimage_d2 = _addOneShapeChangingLayer_Conv2D_addConvOrPooling_minSize(layers, layersNumber, index)
-    kerpool_size, padding, strides, dilation_rate = _decideConv2DOrPoolingParams(layer, minimage_d1, minimage_d2, image_d1, image_d2)
+    minimage_d1, minimage_d2 = _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index)
+    kerpool_size, padding, strides, dilation_rate = _decideConv2DOrPoolingParams(op, minimage_d1, minimage_d2, image_d1, image_d2)
 
-    return myLayer(layer, modelType='conv2d', definite=False, subType='conv and pooling', \
+    return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op, \
         kerpool_size=kerpool_size, padding=padding, strides=strides, dilation_rate=dilation_rate)
-       
-def _addOneShapeChangingLayer_Conv2D_addOperation(layers, layer, layersNumber, index):
-    if _convOrPooling(layer):
-        print('hi')
-        return _addOneShapeChangingLayer_Conv2D_addConvOrPooling(layers, layer, layersNumber, index)
-    else:
-        return myLayer(layer, modelType='conv2d', definite=False, subType='dense')
-    
 
-def _addOneShapeChangingLayer_Conv2D(model):
+def _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, index, layerType, mode, op):
+    # if _convOrPooling(layer):
+    print(layer, layerType)
+    if layerType == 1:
+        # UPDATE
+        if op != 'SpatialDropout2D':
+            return _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mode, op)
+        else:
+            return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op)
+    elif layerType == 2 or layerType == 3:
+        return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op)
+    else:
+        raise Exception(Cyan(f'Unkown layerType: {str(layerType)}'))
+    
+def _addOneLayer_Conv2D_analyze_layerType(op):
+
+    from globalInfos import CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL
+    if op in CONV2D_TYPE_1_POOL: return 1
+    elif op in CONV2D_TYPE_2_POOL: return 2
+    elif op in CONV2D_TYPE_3_POOL: return 3
+    else:
+        raise Exception(Cyan(f'Unkown op: {op}'))
+
+def _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op):
+    
+    if mode == 'random':
+        layerTypes = []
+        from globalInfos import CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL
+        if CONV2D_TYPE_1_POOL: layerTypes.append(1)
+        if CONV2D_TYPE_2_POOL: layerTypes.append(2)
+        if CONV2D_TYPE_3_POOL: layerTypes.append(3)
+        layerType = np.random.choice(layerTypes)
+    elif mode == 'fixed':
+        layerType = _addOneLayer_Conv2D_analyze_layerType(op)  
+        # print('op = ', op, ' layerType = ', layerType)
+    else:
+        raise Exception(Cyan(f'Unkown mode: {mode}'))
+    heads, tails = [], []
+    from globalInfos import CONV2D_LAYERTYPE1_HEADS,\
+                            CONV2D_LAYERTYPE1_TAILS,\
+                            CONV2D_LAYERTYPE2_HEADS,\
+                            CONV2D_LAYERTYPE2_TAILS,\
+                            CONV2D_LAYERTYPE3_HEADS,\
+                            CONV2D_LAYERTYPE3_TAILS
+    if layerType == 1:
+        heads, tails = CONV2D_LAYERTYPE1_HEADS, CONV2D_LAYERTYPE1_TAILS
+    elif layerType == 2:
+        heads, tails = CONV2D_LAYERTYPE2_HEADS, CONV2D_LAYERTYPE2_TAILS
+    elif layerType == 3:
+        heads, tails = CONV2D_LAYERTYPE3_HEADS, CONV2D_LAYERTYPE3_TAILS
+    else:
+        raise Exception(Cyan('Unkown '))
+    head_tail_id = np.random.randint(0, len(heads))
+    head, tail = heads[head_tail_id], tails[head_tail_id]
+    return layerType, head, tail
+
+def decide_data_form(layers):
+    for layer in layers:
+        config = layer.get_config()
+        if 'data_format' in config:
+            globalInfos.DATA_FORMAT = config['data_format'] 
+            break
+
+def decide_data_type(layers):
+    for layer in layers:
+        config = layer.get_config()
+        if 'dtype' in config:
+            globalInfos.DTYPE = config['dtype'] 
+            break
+
+def _addOneLayer_Conv2D(model, mode, op):
 
     newmodel = keras.Sequential()
     layers = model.layers
     layersNumber = len(layers)
-
-    # haoyang only considers conv2D
-    while True:
-        insertIndex = np.random.randint(1, layersNumber)
-        if 'Conv2D' not in layers[insertIndex].__class__.__name__ and \
-            'Pooling2D' not in layers[insertIndex].__class__.__name__:
-            continue
-        break
-
-    insertIndex = 9
+    
+    layerType, head, tail = _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op)
+    insertIndex = np.random.randint(head, tail)
+    # insertIndex = 4
 
     print(Red(f'insertIndex = {str(insertIndex)}'))
+
+    decide_data_form(layers)
+    decide_data_type(layers)
 
     for i, layer in enumerate(layers):
         if i == 0:
@@ -243,8 +223,8 @@ def _addOneShapeChangingLayer_Conv2D(model):
             mylayer =  myLayer(layer, modelType='conv2d', definite=True)
         elif i == insertIndex:
             print(Red('Artificial layer construction begins.'))
-            print(layer)
-            mylayer_ = _addOneShapeChangingLayer_Conv2D_addOperation(layers, layer, layersNumber, i)
+            print(Blue(layer.__class__.__name__))
+            mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, i, layerType, mode, op)
             newmodel.add(mylayer_)
             # print(Yellow(str(mylayer_.get_config())))
             print(Red('Artificial layer construction finished.'))
