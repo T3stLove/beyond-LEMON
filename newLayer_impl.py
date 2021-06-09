@@ -178,7 +178,7 @@ def mySeparableConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
             config['strides'] = (1,1)
 
     config['name'] = _setName(keras.layers.SeparableConv2D)
-    _setExtraConfigInfo(keras.layers.Conv2D, config)
+    _setExtraConfigInfo(keras.layers.SeparableConv2D, config)
     newlayer = keras.layers.SeparableConv2D.from_config(config)
     newlayer.build(param_inputshape)
 

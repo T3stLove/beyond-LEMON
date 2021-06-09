@@ -4,3 +4,5 @@ test.py
 newLayer_impl copy.py
 old.py
 rubbish.py
+config.conf
+./test.py
