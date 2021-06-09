@@ -99,6 +99,7 @@ if __name__ == '__main__':
         
         modelpath = os.path.join(ORIGIN_PATH, f'{modelname}_origin.h5')
         model = keras.models.load_model(modelpath)
+        model.summary()
         type123_heads_tails_extraction(model.layers, len(model.layers))
         if MODE == 'random':
             upperbound = int(TOTALNUMBER) + 1
