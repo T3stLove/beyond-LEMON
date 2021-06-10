@@ -87,11 +87,12 @@ def config_extraction():
 def extra_info_extraction():
     for op in OPSPOOL:
         if op == 'Conv2D' or op == 'SeparableConv2D' or op == 'AveragePooling2D' or op == 'MaxPooling2D' \
-            or op == 'SpatialDropout2D':
+            or op == 'SpatialDropout2D' or op == 'SeparableConv2D':
             CONV2D_TYPE_1_POOL.append(op)
         elif op == 'Dense':
             CONV2D_TYPE_2_POOL.append(op)
-        elif op == 'Dropout' or op == 'BatchNormalization' or op == 'LayerNormalization':
+        elif op == 'Dropout' or op == 'BatchNormalization' or op == 'LayerNormalization' or \
+            op == 'GaussianDropout':
             CONV2D_TYPE_3_POOL.append(op)
         else:
             raise Exception(Cyan(f'Unkown op: {op}'))

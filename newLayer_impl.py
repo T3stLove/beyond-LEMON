@@ -69,6 +69,8 @@ def _getConfig(layerclass):
                     'beta_constraint': None, 'gamma_constraint': None}
     elif className == 'Flatten':
         return {'name': 'flatten', 'trainable': True, 'dtype': 'float32', 'data_format': 'channels_last'}
+    elif className == 'GaussianDropout':
+        return {'name': 'gaussian_dropout', 'trainable': True, 'dtype': 'float32', 'rate': 0.9}
     else:
         raise Exception(Cyan(f'Unknown className: {className}'))
 
@@ -270,6 +272,17 @@ def mySpatialDropout2DLayer(layer, definite=True):
     config['name'] = _setName(keras.layers.SpatialDropout2D)
     _setExtraConfigInfo(keras.layers.SpatialDropout2D, config)
     newlayer = keras.layers.SpatialDropout2D.from_config(config)
+    return newlayer
+
+def myGaussianDropoutLayer(layer, definite=True):
+    if definite:
+        config = layer.get_config()
+    else:
+        config = _getConfig(keras.layers.GaussianDropout)
+        config['rate'] = np.random.choice([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
+    config['name'] = _setName(keras.layers.GaussianDropout)
+    _setExtraConfigInfo(keras.layers.GaussianDropout, config)
+    newlayer = keras.layers.GaussianDropout.from_config(config)
     return newlayer
 
 def myBatchNormalizationLayer(layer, inputshape, definite=True):
