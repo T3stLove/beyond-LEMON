@@ -12,6 +12,7 @@ def _myConv2DLayer_op_to_newlayer(op):
     elif op == 'SpatialDropout2D': return mySpatialDropout2DLayer
     elif op == 'BatchNormalization': return myBatchNormalizationLayer
     elif op == 'LayerNormalization': return myLayerNormalizationLayer
+    elif op == 'GaussianDropout': return myGaussianDropoutLayer
     else:
         raise Exception(Cyan(f'The op {op} does not correspond to any new layer.'))
     
@@ -42,7 +43,7 @@ def _myConv2DLayer_indefinite_3(layer, inputshape, mode, op):
         from globalInfos import CONV2D_TYPE_3_POOL
         kerasLayer = _myConv2DLayer_op_to_newlayer(np.random.choice(CONV2D_TYPE_3_POOL))
     
-    if kerasLayer == myDropoutLayer:
+    if kerasLayer == myDropoutLayer or kerasLayer == myGaussianDropoutLayer:
         newlayer = kerasLayer(layer, definite=False)
     else:
         newlayer = kerasLayer(layer, inputshape, definite=False)
@@ -68,6 +69,8 @@ def _myConv2DLayer_definite(layer, inputshape):
         newlayer = myLayerNormalizationLayer(layer, inputshape)
     elif isinstance(layer, keras.layers.SeparableConv2D):
         newlayer = mySpatialDropout2DLayer(layer)
+    elif isinstance(layer, keras.layers.GaussianDropout):
+        newlayer = myGaussianDropoutLayer(layer)
     if not newlayer:
         raise Exception(Cyan('newlayer is of unexpected type!'))
 

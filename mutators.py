@@ -13,13 +13,11 @@ import globalInfos
 def addOneLayer(model, mode='random', op = None):
     return _addOneLayer_Conv2D(model, mode, op)
 
-def _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index):
+def _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, index):
 
     nextLayer = layers[index]
     # haoyang only considers Conv2D, maxpooling and averagepooling
-    if not isinstance(nextLayer, keras.layers.Conv2D) and \
-       not isinstance(nextLayer, keras.layers.AveragePooling2D) and \
-       not isinstance(nextLayer, keras.layers.MaxPooling2D):
+    if len(nextLayer.output.shape) == 2:
        minimage_d1, minimage_d2 = 1, 1
     else:
         minimage_d1, minimage_d2 = nextLayer.output.shape[1], nextLayer.output.shape[2]
@@ -116,24 +114,24 @@ def _decideConv2DOrPoolingParams(op, minimage_d1, minimage_d2, image_d1, image_d
     return kerpool_size, padding, strides, dilation_rate
 
 
-def _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mode, op):
+def _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, index, layerType, mode, op):
 
     inputshape = layer.input.shape
     image_d1 = inputshape[1]
     image_d2 = inputshape[2]
-    minimage_d1, minimage_d2 = _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, layersNumber, index)
+    minimage_d1, minimage_d2 = _addOneLayer_Conv2D_addConv2DOrPooling_minSize(layers, index)
     kerpool_size, padding, strides, dilation_rate = _decideConv2DOrPoolingParams(op, minimage_d1, minimage_d2, image_d1, image_d2)
 
     return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op, \
         kerpool_size=kerpool_size, padding=padding, strides=strides, dilation_rate=dilation_rate)
 
-def _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, index, layerType, mode, op):
+def _addOneLayer_Conv2D_addOperation(layers, layer, index, layerType, mode, op):
     # if _convOrPooling(layer):
     print(layer, layerType)
     if layerType == 1:
         # UPDATE
         if op != 'SpatialDropout2D':
-            return _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, layersNumber, index, layerType, mode, op)
+            return _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, index, layerType, mode, op)
         else:
             return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op)
     elif layerType == 2 or layerType == 3:
@@ -224,7 +222,7 @@ def _addOneLayer_Conv2D(model, mode, op):
         elif i == insertIndex:
             print(Red('Artificial layer construction begins.'))
             print(Blue(layer.__class__.__name__))
-            mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, layersNumber, i, layerType, mode, op)
+            mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, i, layerType, mode, op)
             newmodel.add(mylayer_)
             # print(Yellow(str(mylayer_.get_config())))
             print(Red('Artificial layer construction finished.'))
