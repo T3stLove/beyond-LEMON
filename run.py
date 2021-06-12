@@ -15,7 +15,7 @@ def _test_mutant(mutant_path):
     model.summary()
     print(Magenta('TEST SUCCEED!'))
 
-def run_random_mod(modelname):
+def run_random_mod(model, modelname):
     print('ORDERS = ', ORDERS)
     for order in ORDERS:
         for cnt in range(1, upperbound):
@@ -47,7 +47,7 @@ def run_random_mod(modelname):
                 h5dest = os.path.join(dest, htfile_newname)
                 newmodel.save(h5dest)
 
-def run_fixed_mod(modelname):
+def run_fixed_mod(model, modelname):
     for order in ORDERS:
         for op in OPSPOOL:
             for cnt in range(1, upperbound):
@@ -103,9 +103,9 @@ if __name__ == '__main__':
         type123_heads_tails_extraction(model.layers, len(model.layers))
         if MODE == 'random':
             upperbound = int(TOTALNUMBER) + 1
-            run_random_mod(modelname)
+            run_random_mod(model, modelname)
         elif MODE == 'fixed':
             upperbound = int(EACHNUMBER) + 1
-            run_fixed_mod(modelname)
+            run_fixed_mod(model, modelname)
         else:
             raise Exception(Cyan(f'Unkown mode: {MODE}'))
