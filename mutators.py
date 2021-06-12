@@ -197,10 +197,7 @@ def decide_data_type(layers):
 
 def _addOneLayer_Conv2D(model, mode, op):
 
-    newmodel = keras.Sequential()
     layers = model.layers
-    layersNumber = len(layers)
-    
     layerType, head, tail = _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op)
     insertIndex = np.random.randint(head, tail)
     # insertIndex = 4
@@ -209,12 +206,10 @@ def _addOneLayer_Conv2D(model, mode, op):
 
     decide_data_form(layers)
     decide_data_type(layers)
-
     for i, layer in enumerate(layers):
         if i == 0:
-            inputshape = layer.input.shape
-            newmodel.add(keras.layers.InputLayer(input_shape=inputshape[1:])) 
-
+            inputs = keras.Input(shape=layer.input.shape[1:], dtype=globalInfos.DTYPE)
+            model_inputs = inputs
         print('i =', i)
 
         if i < insertIndex:
@@ -223,7 +218,8 @@ def _addOneLayer_Conv2D(model, mode, op):
             print(Red('Artificial layer construction begins.'))
             print(Blue(layer.__class__.__name__))
             mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, i, layerType, mode, op)
-            newmodel.add(mylayer_)
+            inputs = mylayer_(inputs)
+            # newmodel.add(mylayer_)
             # print(Yellow(str(mylayer_.get_config())))
             print(Red('Artificial layer construction finished.'))
             previous_inputshape = mylayer_.output.shape
@@ -234,9 +230,14 @@ def _addOneLayer_Conv2D(model, mode, op):
         else:
             mylayer = myLayer(layer, modelType='conv2d', definite=True, inputshape=previous_inputshape)
 
-        newmodel.add(mylayer)
+        if i == len(layers) - 1:
+            outputs = mylayer(inputs)
+        else:
+            inputs = mylayer(inputs)
+        # newmodel.add(mylayer)
         previous_inputshape = mylayer.output.shape
         # print('previous_inputshape2 =', previous_inputshape)
         # for node in mylayer._inbound_nodes:
         #     print(node.inbound_layers)
+    newmodel = keras.Model(inputs=model_inputs, outputs=outputs)
     return newmodel
