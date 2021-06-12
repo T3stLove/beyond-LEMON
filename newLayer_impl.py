@@ -320,3 +320,5 @@ def myLayerNormalizationLayer(layer, inputshape, definite=True):
     if definite and ((inputshape and inputshape[-1] == layer.input.shape[-1]) or not inputshape):
         newlayer.set_weights(layer.get_weights())
     return newlayer
+
+# def myAddLayer(layer):
