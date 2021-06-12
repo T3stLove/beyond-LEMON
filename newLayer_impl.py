@@ -7,14 +7,14 @@ from colors import *
 def _setName(layerclass):
     className = layerclass.__name__
     id = -1
-    from globalInfos import LAYER_NAME
-    if className not in LAYER_NAME:
-        LAYER_NAME[className] = 1
+    from globalInfos import LAYER_CLASS_NAMES
+    if className not in LAYER_CLASS_NAMES:
+        LAYER_CLASS_NAMES[className] = 1
         id = 1
     else:
-        id = LAYER_NAME[className] 
+        id = LAYER_CLASS_NAMES[className] 
         id += 1
-        LAYER_NAME[className] = id
+        LAYER_CLASS_NAMES[className] = id
     return className + '_' + str(id)
 
 def _getConfig(layerclass):

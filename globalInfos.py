@@ -46,7 +46,7 @@ without shape limitation
 DATA_FORMAT = None
 DTYPE = None
 
-LAYER_NAME = {}
+LAYER_CLASS_NAMES = {}
 
 CONV2D_LAYERTYPE1_HEADS = []
 CONV2D_LAYERTYPE1_TAILS = []
@@ -69,6 +69,12 @@ EACHNUMBER = None
 CONV2D_TYPE_1_POOL = []
 CONV2D_TYPE_2_POOL = []
 CONV2D_TYPE_3_POOL = []
+
+LAYER_NAME = []
+
+def layerName_extraction(model):
+    for layer in model.layers:
+        LAYER_NAME.append(layer.name)
 
 def config_extraction():
     global MODELNAMES, MODE, ORIGIN_PATH, MUTANT_PATH, ORDERS, OPSPOOL, TOTALNUMBER, EACHNUMBER

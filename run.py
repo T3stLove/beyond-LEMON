@@ -8,7 +8,8 @@ from mutators import addOneLayer
 import os, subprocess
 from globalInfos import type123_heads_tails_extraction,\
                         config_extraction,\
-                        extra_info_extraction
+                        extra_info_extraction,\
+                        layerName_extraction
 
 def _test_mutant(mutant_path):
     model = keras.models.load_model(mutant_path)
@@ -101,6 +102,7 @@ if __name__ == '__main__':
         model = keras.models.load_model(modelpath)
         model.summary()
         type123_heads_tails_extraction(model.layers, len(model.layers))
+        layerName_extraction(model)
         if MODE == 'random':
             upperbound = int(TOTALNUMBER) + 1
             run_random_mod(model, modelname)
