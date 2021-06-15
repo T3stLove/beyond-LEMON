@@ -1,11 +1,9 @@
 import numpy as np
-from numpy.lib.function_base import insert
 import tensorflow as tf
 import tensorflow.keras as keras
 import tensorflow.keras.backend as K
 from tensorflow.python.keras.layers.merge import minimum
 from colors import *
-import globalInfos
 from newLayer_handler import myLayer
 from collections import namedtuple
 import globalInfos
@@ -125,26 +123,88 @@ def _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, index, layerType, mode
     return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op, \
         kerpool_size=kerpool_size, padding=padding, strides=strides, dilation_rate=dilation_rate)
 
+def _addOneLayer_Conv2D_addZeroPadding2D(layer, layerType, mode, op):
+    frn = [
+        np.random.randint(1, 11),
+        np.random.randint(1, 11),
+        np.random.randint(1, 11),
+        np.random.randint(1, 11)
+    ]
+    return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op,\
+        padding=((frn[0], frn[1]), (frn[2], frn[3])))
+
+def _addOneLayer_Conv2D_addCropping2D(layer, layerType, mode, op):
+    frn = [
+        np.random.randint(1, 11),
+        np.random.randint(1, 11),
+        np.random.randint(1, 11),
+        np.random.randint(1, 11)
+    ]
+    return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op,\
+        cropping=((frn[0], frn[1]), (frn[2], frn[3])))
+
 def _addOneLayer_Conv2D_addOperation(layers, layer, index, layerType, mode, op):
-    # if _convOrPooling(layer):
-    print(layer, layerType)
     if layerType == 1:
+
+        if mode == 'fixed':
+           pass
+        elif mode == 'random':    
+            from globalInfos import CONV2D_TYPE_1_POOL
+            op = np.random.choice(CONV2D_TYPE_1_POOL)
+        else:
+            raise Exception(Cyan(f'Unkown mode: {mode}'))
+
         # UPDATE
-        if op != 'SpatialDropout2D':
+        if op != 'SpatialDropout2D' and op != 'ZeroPadding2D' and op != 'Cropping2D':
             return _addOneLayer_Conv2D_addConv2DOrPooling(layers, layer, index, layerType, mode, op)
         else:
-            return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op)
-    elif layerType == 2 or layerType == 3:
+            if op == 'ZeroPadding2D':
+                return _addOneLayer_Conv2D_addZeroPadding2D(layer, layerType, mode, op)
+            elif op == 'Cropping2D':
+                return _addOneLayer_Conv2D_addCropping2D(layer, layerType, mode, op)
+            else:
+                return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op)
+
+    elif layerType == 2 or layerType == 3 or layerType == 4:
+
+        if layerType == 2:
+            if mode == 'fixed':
+                pass
+            elif mode == 'random':    
+                from globalInfos import CONV2D_TYPE_2_POOL
+                op = np.random.choice(CONV2D_TYPE_2_POOL)
+            else:
+                raise Exception(Cyan(f'Unkown mode: {mode}'))
+        
+        elif layerType == 3:
+            if mode == 'fixed':
+                pass
+            elif mode == 'random':    
+                from globalInfos import CONV2D_TYPE_3_POOL
+                op = np.random.choice(CONV2D_TYPE_3_POOL)
+            else:
+                raise Exception(Cyan(f'Unkown mode: {mode}'))
+        
+        elif layerType == 4:
+            if mode == 'fixed':
+                pass
+            elif mode == 'random':    
+                from globalInfos import CONV2D_TYPE_4_POOL
+                op = np.random.choice(CONV2D_TYPE_4_POOL)
+            else:
+                raise Exception(Cyan(f'Unkown mode: {mode}'))
+
         return myLayer(layer, modelType='conv2d', definite=False, subType=layerType, mode=mode, op=op)
     else:
         raise Exception(Cyan(f'Unkown layerType: {str(layerType)}'))
     
 def _addOneLayer_Conv2D_analyze_layerType(op):
 
-    from globalInfos import CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL
+    from globalInfos import CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL, CONV2D_TYPE_4_POOL
     if op in CONV2D_TYPE_1_POOL: return 1
     elif op in CONV2D_TYPE_2_POOL: return 2
     elif op in CONV2D_TYPE_3_POOL: return 3
+    elif op in CONV2D_TYPE_4_POOL: return 4
     else:
         raise Exception(Cyan(f'Unkown op: {op}'))
 
@@ -152,10 +212,11 @@ def _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op):
     
     if mode == 'random':
         layerTypes = []
-        from globalInfos import CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL
+        from globalInfos import CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL, CONV2D_TYPE_4_POOL
         if CONV2D_TYPE_1_POOL: layerTypes.append(1)
         if CONV2D_TYPE_2_POOL: layerTypes.append(2)
         if CONV2D_TYPE_3_POOL: layerTypes.append(3)
+        if CONV2D_TYPE_4_POOL: layerTypes.append(4)
         layerType = np.random.choice(layerTypes)
     elif mode == 'fixed':
         layerType = _addOneLayer_Conv2D_analyze_layerType(op)  
@@ -168,15 +229,19 @@ def _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op):
                             CONV2D_LAYERTYPE2_HEADS,\
                             CONV2D_LAYERTYPE2_TAILS,\
                             CONV2D_LAYERTYPE3_HEADS,\
-                            CONV2D_LAYERTYPE3_TAILS
+                            CONV2D_LAYERTYPE3_TAILS,\
+                            CONV2D_LAYERTYPE4_HEADS,\
+                            CONV2D_LAYERTYPE4_TAILS
     if layerType == 1:
         heads, tails = CONV2D_LAYERTYPE1_HEADS, CONV2D_LAYERTYPE1_TAILS
     elif layerType == 2:
         heads, tails = CONV2D_LAYERTYPE2_HEADS, CONV2D_LAYERTYPE2_TAILS
     elif layerType == 3:
         heads, tails = CONV2D_LAYERTYPE3_HEADS, CONV2D_LAYERTYPE3_TAILS
+    elif layerType == 4:
+        heads, tails = CONV2D_LAYERTYPE4_HEADS, CONV2D_LAYERTYPE4_TAILS
     else:
-        raise Exception(Cyan('Unkown '))
+        raise Exception(Cyan(f'Unkown layerType: {str(layerType)}'))
     head_tail_id = np.random.randint(0, len(heads))
     head, tail = heads[head_tail_id], tails[head_tail_id]
     return layerType, head, tail
@@ -196,8 +261,19 @@ def decide_data_type(layers):
             break
 
 def _addOneLayer_Conv2D(model, mode, op):
+    # if model.__class__.__name__ == 'Sequential':
+    #     return _addOneLayer_Conv2D_sequential(model, mode, op)
+    # elif model.__class__.__name__ == 'Functional':
+    #     return _addOneLayer_Conv2D_functional(model, mode, op)
+    # else:
+    #     raise Exception(Cyan('Unknown model class'))
+    return _addOneLayer_Conv2D_functional(model, mode, op)
 
+def _addOneLayer_Conv2D_sequential(model, mode, op):
+
+    newmodel = keras.Sequential()
     layers = model.layers
+    
     layerType, head, tail = _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op)
     insertIndex = np.random.randint(head, tail)
     # insertIndex = 4
@@ -206,38 +282,82 @@ def _addOneLayer_Conv2D(model, mode, op):
 
     decide_data_form(layers)
     decide_data_type(layers)
+
     for i, layer in enumerate(layers):
         if i == 0:
-            inputs = keras.Input(shape=layer.input.shape[1:], dtype=globalInfos.DTYPE)
-            model_inputs = inputs
-        print('i =', i)
+            inputshape = layer.input.shape
+            newmodel.add(keras.layers.InputLayer(input_shape=inputshape[1:])) 
 
         if i < insertIndex:
             mylayer =  myLayer(layer, modelType='conv2d', definite=True)
         elif i == insertIndex:
             print(Red('Artificial layer construction begins.'))
-            print(Blue(layer.__class__.__name__))
             mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, i, layerType, mode, op)
-            inputs = mylayer_(inputs)
-            # newmodel.add(mylayer_)
-            # print(Yellow(str(mylayer_.get_config())))
+            newmodel.add(mylayer_)
             print(Red('Artificial layer construction finished.'))
             previous_inputshape = mylayer_.output.shape
-
-            # print('previous_inputshape1 =', previous_inputshape)
             mylayer = myLayer(layer, modelType='conv2d', definite=True, inputshape=previous_inputshape)
-            # print(Yellow(str(mylayer.get_config())))
         else:
             mylayer = myLayer(layer, modelType='conv2d', definite=True, inputshape=previous_inputshape)
 
-        if i == len(layers) - 1:
-            outputs = mylayer(inputs)
+        newmodel.add(mylayer)
+        previous_inputshape = mylayer.output.shape
+    return newmodel
+
+def _addOneLayer_Conv2D_functional_layerType4(layers, id):
+    pass
+
+def _addOneLayer_Conv2D_functional(model, mode, op):
+
+    layers = model.layers
+    layerType, head, tail = _addOneLayer_Conv2D_decide_layerType_and_head_tail(mode, op)
+    insertIndex = np.random.randint(head, tail)
+    print(Red(f'insertIndex = {str(insertIndex)}'))
+
+    decide_data_form(layers)
+    decide_data_type(layers)
+
+    data = []
+    inputs = []
+    outputs = []
+    for i, layer in enumerate(layers):
+
+        if isinstance(layer, keras.layers.InputLayer):
+            input = keras.Input(shape=layer.input.shape[1:], dtype=globalInfos.DTYPE)
+            data.append(input)
+            inputs.append(input)
+
+        if i < insertIndex:
+            mylayer =  myLayer(layer, modelType='conv2d', definite=True)
+        elif i == insertIndex:
+            print(Red('Artificial layer construction begins.'))
+            mylayer_ = _addOneLayer_Conv2D_addOperation(layers, layer, i, layerType, mode, op)
+            # UPDATE
+            if layerType != 4:
+                input = mylayer_(input)
+            else:
+                input = _addOneLayer_Conv2D_functional_layerType4(layers, i)
+            print(Red('Artificial layer construction finished.'))
+            previous_inputshape = mylayer_.output.shape
+            mylayer = myLayer(layer, modelType='conv2d', definite=True, inputshape=previous_inputshape)
         else:
-            inputs = mylayer(inputs)
+            mylayer = myLayer(layer, modelType='conv2d', definite=True, inputshape=previous_inputshape)
+
+        if layer._outbound_nodes == []:
+            output = mylayer(inputs)
+            outputs.append(output)
+        else:
+            from globalInfos import LAYER_NAME
+            tmp_inputs = []
+            for node in layer._inbound_nodes:
+                for layer_ in node.inbound_layers:
+                    tmp_inputs.append(data[LAYER_NAME.index(layer_.name)])
+            input = mylayer(tmp_inputs)
+            data.append(input)
         # newmodel.add(mylayer)
         previous_inputshape = mylayer.output.shape
         # print('previous_inputshape2 =', previous_inputshape)
         # for node in mylayer._inbound_nodes:
         #     print(node.inbound_layers)
-    newmodel = keras.Model(inputs=model_inputs, outputs=outputs)
+    newmodel = keras.Model(inputs=inputs, outputs=outputs)
     return newmodel

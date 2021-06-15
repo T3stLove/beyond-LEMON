@@ -57,6 +57,9 @@ CONV2D_LAYERTYPE2_TAILS = []
 CONV2D_LAYERTYPE3_HEADS = []
 CONV2D_LAYERTYPE3_TAILS = []
 
+CONV2D_LAYERTYPE4_HEADS = []
+CONV2D_LAYERTYPE4_TAILS = []
+
 MODELNAMES = None
 MODE = None
 ORIGIN_PATH = None
@@ -69,10 +72,13 @@ EACHNUMBER = None
 CONV2D_TYPE_1_POOL = []
 CONV2D_TYPE_2_POOL = []
 CONV2D_TYPE_3_POOL = []
+CONV2D_TYPE_4_POOL = []
 
 LAYER_NAME = []
 
 def layerName_extraction(model):
+    global LAYER_NAME
+    LAYER_NAME = []
     for layer in model.layers:
         LAYER_NAME.append(layer.name)
 
@@ -91,15 +97,17 @@ def config_extraction():
     EACHNUMBER = parser['fixed']['eachNumber']
 
 def extra_info_extraction():
+    global CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL, CONV2D_TYPE_4_POOL
     for op in OPSPOOL:
-        if op == 'Conv2D' or op == 'SeparableConv2D' or op == 'AveragePooling2D' or op == 'MaxPooling2D' \
-            or op == 'SpatialDropout2D' or op == 'SeparableConv2D':
+        if op in ['Conv2D', 'SeparableConv2D', 'AveragePooling2D', 'MaxPooling2D'\
+            'SpatialDropout2D', 'SeparableConv2D', 'ZeroPadding2D', 'Cropping2D']:
             CONV2D_TYPE_1_POOL.append(op)
         elif op == 'Dense':
             CONV2D_TYPE_2_POOL.append(op)
-        elif op == 'Dropout' or op == 'BatchNormalization' or op == 'LayerNormalization' or \
-            op == 'GaussianDropout':
+        elif op in ['Dropout', 'BatchNormalization', 'LayerNormalization', 'GaussianDropout']:
             CONV2D_TYPE_3_POOL.append(op)
+        elif op in ['Add', 'Concatenate', 'Average', 'Maximum', 'Minimum', 'Subtract', 'Multiply', 'Dot']:
+            CONV2D_TYPE_4_POOL.append(op)
         else:
             raise Exception(Cyan(f'Unkown op: {op}'))
 
@@ -154,7 +162,13 @@ def _type3_heads_tails_extraction(layersNumber):
     CONV2D_LAYERTYPE3_HEADS.append(0)
     CONV2D_LAYERTYPE3_TAILS.append(layersNumber)
 
+def _type4_heads_tails_extraction(layersNumber):
+    global CONV2D_LAYERTYPE4_HEADS, CONV2D_LAYERTYPE4_TAILS
+    CONV2D_LAYERTYPE4_HEADS.append(2)
+    CONV2D_LAYERTYPE4_TAILS.append(layersNumber)
+
 def type123_heads_tails_extraction(layers, layersNumber):
     _type1_heads_tails_extraction(layers)
     _type2_heads_tails_extraction(layers)
     _type3_heads_tails_extraction(layersNumber)
+    _type4_heads_tails_extraction(layersNumber)

@@ -71,6 +71,14 @@ def _getConfig(layerclass):
         return {'name': 'flatten', 'trainable': True, 'dtype': 'float32', 'data_format': 'channels_last'}
     elif className == 'GaussianDropout':
         return {'name': 'gaussian_dropout', 'trainable': True, 'dtype': 'float32', 'rate': 0.9}
+    elif className == 'Add':
+        return {'name': 'add', 'trainable': True, 'dtype': 'float32'}
+    elif className == 'Reshape':
+        return {'name': 'reshape', 'trainable': True, 'dtype': 'float32', 'target_shape': (27,)}
+    elif className == 'ZeroPadding2D':
+        return {'name': 'zero_padding2d', 'trainable': True, 'dtype': 'float32', 'padding': ((1, 2), (2, 1)), 'data_format': 'channels_last'}
+    elif className == 'Cropping2D':
+        return {'name': 'cropping2d', 'trainable': True, 'dtype': 'float32', 'cropping': ((1, 2), (2, 1)), 'data_format': 'channels_last'}
     else:
         raise Exception(Cyan(f'Unknown className: {className}'))
 
@@ -105,17 +113,17 @@ def myDenseLayer(layer, inputshape, definite=True):
 
     return newlayer
 
-def myConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
+def myConv2DLayer(layer, inputshape, **indefinite_kwargs):
     param_inputshape = layer.input.shape
     setweights = True
 
-    if indefinite_conv_pooling_kwargs:
+    if indefinite_kwargs:
         config = _getConfig(keras.layers.Conv2D)
         config['kernel_size'], config['padding'], config['strides'], config['dilation_rate'] = \
-                                                       indefinite_conv_pooling_kwargs['kerpool_size'], \
-                                                       indefinite_conv_pooling_kwargs['padding'], \
-                                                       indefinite_conv_pooling_kwargs['strides'], \
-                                                       indefinite_conv_pooling_kwargs['dilation_rate']
+                                                       indefinite_kwargs['kerpool_size'], \
+                                                       indefinite_kwargs['padding'], \
+                                                       indefinite_kwargs['strides'], \
+                                                       indefinite_kwargs['dilation_rate']
         config['filters'] = np.random.randint(1, 11) 
         config['activation'] = np.random.choice(['relu', 'sigmoid', 'tanh', 'selu', 'elu'])
         setweights = False
@@ -149,17 +157,17 @@ def myConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
         newlayer.set_weights(layer.get_weights())
     return newlayer
 
-def mySeparableConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
+def mySeparableConv2DLayer(layer, inputshape, **indefinite_kwargs):
     param_inputshape = layer.input.shape
     setweights = True
 
-    if indefinite_conv_pooling_kwargs:
+    if indefinite_kwargs:
         config = _getConfig(keras.layers.SeparableConv2D)
         config['kernel_size'], config['padding'], config['strides'], config['dilation_rate'] = \
-            indefinite_conv_pooling_kwargs['kerpool_size'], \
-            indefinite_conv_pooling_kwargs['padding'], \
-            indefinite_conv_pooling_kwargs['strides'], \
-            indefinite_conv_pooling_kwargs['dilation_rate']
+            indefinite_kwargs['kerpool_size'], \
+            indefinite_kwargs['padding'], \
+            indefinite_kwargs['strides'], \
+            indefinite_kwargs['dilation_rate']
         config['filters'] = np.random.randint(1, 11)
         config['activation'] = np.random.choice(['relu', 'sigmoid', 'tanh', 'selu', 'elu'])
         setweights = False
@@ -193,14 +201,14 @@ def mySeparableConv2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
         newlayer.set_weights(layer.get_weights())
     return newlayer
 
-def myAveragePooling2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
+def myAveragePooling2DLayer(layer, inputshape, **indefinite_kwargs):
 
-    if indefinite_conv_pooling_kwargs:
+    if indefinite_kwargs:
         config = _getConfig(keras.layers.AveragePooling2D)
         config['pool_size'], config['padding'], config['strides'] = \
-                                      indefinite_conv_pooling_kwargs['kerpool_size'], \
-                                      indefinite_conv_pooling_kwargs['padding'], \
-                                      indefinite_conv_pooling_kwargs['strides']
+                                      indefinite_kwargs['kerpool_size'], \
+                                      indefinite_kwargs['padding'], \
+                                      indefinite_kwargs['strides']
 
     else:
         config = layer.get_config()
@@ -220,13 +228,13 @@ def myAveragePooling2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs)
     newlayer = keras.layers.AveragePooling2D.from_config(config)
     return newlayer
 
-def myMaxPooling2DLayer(layer, inputshape, **indefinite_conv_pooling_kwargs):
-    if indefinite_conv_pooling_kwargs:
+def myMaxPooling2DLayer(layer, inputshape, **indefinite_kwargs):
+    if indefinite_kwargs:
         config = _getConfig(keras.layers.MaxPooling2D)
         config['pool_size'], config['padding'], config['strides'] = \
-                                      indefinite_conv_pooling_kwargs['kerpool_size'], \
-                                      indefinite_conv_pooling_kwargs['padding'], \
-                                      indefinite_conv_pooling_kwargs['strides']
+                                      indefinite_kwargs['kerpool_size'], \
+                                      indefinite_kwargs['padding'], \
+                                      indefinite_kwargs['strides']
     else:
         config = layer.get_config()
 
@@ -321,4 +329,45 @@ def myLayerNormalizationLayer(layer, inputshape, definite=True):
         newlayer.set_weights(layer.get_weights())
     return newlayer
 
-# def myAddLayer(layer):
+def myAddLayer(layer, definite=True):
+    if not definite:
+        config = _getConfig(keras.layers.Add)
+    else:
+        config = layer.get_config()
+    config['name'] = _setName(keras.layers.Add)
+    _setExtraConfigInfo(keras.layers.Add, config)
+    newlayer = keras.layers.Add.from_config(config)
+    return newlayer
+
+def myReshapeLayer(layer, target_shape=None, definite=True):
+    if not definite:
+        config = _getConfig(keras.layers.Reshape)
+        config['target_shape'] = target_shape
+    else:
+        config = layer.get_config()
+    config['name'] = _setName(keras.layers.Reshape)
+    _setExtraConfigInfo(keras.layers.Reshape, config)
+    newlayer = keras.layers.Reshape.from_config(config)
+    return newlayer
+
+def myZeroPadding2DLayer(layer, **indefinite_kwargs):
+    if indefinite_kwargs:
+        config = _getConfig(keras.layers.ZeroPadding2D)
+        config['padding'] = indefinite_kwargs['padding']
+    else:
+        config = layer.get_config()
+    config['name'] = _setName(keras.layers.ZeroPadding2D)
+    _setExtraConfigInfo(keras.layers.ZeroPadding2D, config)
+    newlayer = keras.layers.ZeroPadding2D.from_config(config)
+    return newlayer
+
+def myCropping2DLayer(layer, **indefinite_kwargs):
+    if indefinite_kwargs:
+        config = _getConfig(keras.layers.Cropping2D)
+        config['cropping'] = indefinite_kwargs['cropping']
+    else:
+        config = layer.get_config()
+    config['name'] = _setName(keras.layers.Cropping2D)
+    _setExtraConfigInfo(keras.layers.Cropping2D, config)
+    newlayer = keras.layers.Cropping2D.from_config(config)
+    return newlayer
