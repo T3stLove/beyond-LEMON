@@ -55,6 +55,8 @@ def _myConv2DLayer_definite(layer, inputshape):
         newlayer = myDenseLayer(layer, inputshape)
     elif isinstance(layer, keras.layers.Conv2D):
         newlayer = myConv2DLayer(layer, inputshape)
+    elif isinstance(layer, keras.layers.SeparableConv2D):
+        newlayer = mySeparableConv2DLayer(layer, inputshape)
     elif isinstance(layer, keras.layers.AveragePooling2D):
         newlayer = myAveragePooling2DLayer(layer, inputshape)
     elif isinstance(layer, keras.layers.Flatten):
