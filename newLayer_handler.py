@@ -69,7 +69,7 @@ def _myConv2DLayer_definite(layer, inputshape):
         newlayer = myBatchNormalizationLayer(layer, inputshape)
     elif isinstance(layer, keras.layers.LayerNormalization):
         newlayer = myLayerNormalizationLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.SeparableConv2D):
+    elif isinstance(layer, keras.layers.SpatialDropout2D):
         newlayer = mySpatialDropout2DLayer(layer)
     elif isinstance(layer, keras.layers.GaussianDropout):
         newlayer = myGaussianDropoutLayer(layer)
