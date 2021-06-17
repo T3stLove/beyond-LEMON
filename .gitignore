@@ -1,6 +1,8 @@
 __pycache__
+.vscode
 run_local.py
 test.py
 newLayer_impl copy.py
 old.py
 rubbish.py
+globalInfos_copy.py

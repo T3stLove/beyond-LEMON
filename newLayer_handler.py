@@ -71,13 +71,15 @@ def _myConv2DLayer_definite(layer, inputshape):
     elif isinstance(layer, keras.layers.LayerNormalization):
         newlayer = myLayerNormalizationLayer(layer, inputshape)
     elif isinstance(layer, keras.layers.SeparableConv2D):
-        newlayer = mySpatialDropout2DLayer(layer)
+        newlayer = mySeparableConv2DLayer(layer, inputshape)
     elif isinstance(layer, keras.layers.GaussianDropout):
         newlayer = myGaussianDropoutLayer(layer)
     elif isinstance(layer, keras.layers.Add):
         newlayer = myAddLayer(layer)
     elif isinstance(layer, keras.layers.Reshape):
         newlayer = myReshapeLayer(layer)
+    elif isinstance(layer, keras.layers.SpatialDropout2D):
+        newlayer = mySpatialDropout2DLayer(layer)
     if not newlayer:
         raise Exception(Cyan('newlayer is of unexpected type!'))
 

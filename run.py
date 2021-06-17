@@ -6,10 +6,10 @@ import pandas as pd
 from colors import *
 from mutators import addOneLayer
 import os, subprocess
-from globalInfos import type123_heads_tails_extraction,\
+from globalInfos import edge_collection,\
                         config_extraction,\
                         extra_info_extraction,\
-                        layerName_extraction
+                        available_edges_extraction_for4types
 
 def _test_mutant(mutant_path):
     model = keras.models.load_model(mutant_path)
@@ -17,7 +17,7 @@ def _test_mutant(mutant_path):
     print(Magenta('TEST SUCCEED!'))
 
 def run_random_mod(model, modelname):
-    print('ORDERS = ', ORDERS)
+    # print('ORDERS = ', ORDERS)
     for order in ORDERS:
         for cnt in range(1, upperbound):
             if int(order) == 1:
@@ -101,8 +101,8 @@ if __name__ == '__main__':
         modelpath = os.path.join(ORIGIN_PATH, f'{modelname}_origin.h5')
         model = keras.models.load_model(modelpath)
         model.summary()
-        type123_heads_tails_extraction(model.layers, len(model.layers))
-        layerName_extraction(model)
+        edge_collection(model)
+        available_edges_extraction_for4types()
         if MODE == 'random':
             upperbound = int(TOTALNUMBER) + 1
             run_random_mod(model, modelname)

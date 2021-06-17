@@ -1,64 +1,10 @@
 from colors import *
 import configparser
+import queue
+import tensorflow.keras as keras
 
-'''
-@haoyang
-Reconstruct the logic of generating insertIndex:
-now we can insert conv2d and pooling(not global) 
-layer before any layers for which the output shape 
-of the previous layer  is 4-demensional.
-
-For instance,
-_________________________________________________________________
-Layer (type)                 Output Shape              Param #
-=================================================================
-conv2d_9 (Conv2D)            (None, 28, 28, 6)         156
-_________________________________________________________________
-average_pooling2d_9 (Average (None, 14, 14, 6)         0
-_________________________________________________________________
-conv2d_10 (Conv2D)           (None, 10, 10, 16)        2416
-_________________________________________________________________
-average_pooling2d_10 (Averag (None, 5, 5, 16)          0
-_________________________________________________________________
-flatten_5 (Flatten)          (None, 400)               0
-_________________________________________________________________
-dense_13 (Dense)             (None, 120)               48120
-_________________________________________________________________
-dropout_5 (Dropout)          (None, 120)               0
-_________________________________________________________________
-dense_14 (Dense)             (None, 84)                10164
-_________________________________________________________________
-dense_15 (Dense)             (None, 10)                850
-=================================================================
-In this model, we can insert conv2d and pooling before flatten_5
-
-layerType:
-> 1: conv2d
-    pooling(not global)
-    SpatialDropout2D
-only handles the situation where the input shape is 4-dimensional
-> 2: dense
-only for 2-dimensional input shape
-> 3: dropout layer and batchnormalization
-without shape limitation
-
-'''
 DATA_FORMAT = None
 DTYPE = None
-
-LAYER_CLASS_NAMES = {}
-
-CONV2D_LAYERTYPE1_HEADS = []
-CONV2D_LAYERTYPE1_TAILS = []
-
-CONV2D_LAYERTYPE2_HEADS = []
-CONV2D_LAYERTYPE2_TAILS = []
-
-CONV2D_LAYERTYPE3_HEADS = []
-CONV2D_LAYERTYPE3_TAILS = []
-
-CONV2D_LAYERTYPE4_HEADS = []
-CONV2D_LAYERTYPE4_TAILS = []
 
 MODELNAMES = None
 MODE = None
@@ -74,13 +20,105 @@ CONV2D_TYPE_2_POOL = []
 CONV2D_TYPE_3_POOL = []
 CONV2D_TYPE_4_POOL = []
 
-LAYER_NAME = []
+CONV2D_TYPE_1_AVAILABLE_EDGES = []
+CONV2D_TYPE_2_AVAILABLE_EDGES = []
+CONV2D_TYPE_3_AVAILABLE_EDGES = []
+CONV2D_TYPE_4_AVAILABLE_EDGES = []
 
-def layerName_extraction(model):
-    global LAYER_NAME
-    LAYER_NAME = []
-    for layer in model.layers:
-        LAYER_NAME.append(layer.name)
+EDGES = []
+
+def _isInputLayer(model, layer, id):
+    if model.__class__.__name__ == 'Sequential':
+        if id == 0:
+            return True
+    else:
+        if isinstance(layer, keras.layers.InputLayer):
+            return True
+    return False
+
+def edge_collection(model):
+    global EDGES
+    layers = model.layers
+    EDGES = []
+    visited = []
+    q = queue.Queue()
+    for id, layer in enumerate(layers):
+        if _isInputLayer(model, layer, id):
+            q.put(layer)
+    
+    while not q.empty():
+        qlayer = q.get()
+        if qlayer.name in visited:
+            continue
+        visited.append(qlayer.name)
+        for node in qlayer._outbound_nodes:
+            q.put(node.outbound_layer)
+            EDGES.append((qlayer, node.outbound_layer))
+
+def _dim4data_bigger(data1, data2):
+    if data1[1] > data2[1] or data1[2] > data2[2]:
+        return True
+    return False
+
+def available_edges_extraction_for4types():
+    global EDGES
+    if EDGES == []:
+        raise Exception(Cyan('Oops! EDGES is empty...'))
+    edges4_repo = []
+    edges4_output_repo = []
+    edges2_repo = []
+    edges2_id = 0
+    for edge in EDGES:
+        inlayer, outlayer = edge
+        if isinstance(inlayer.output, list):
+            raise Exception(Cyan(f'inlayer {inlayer.name} has more than 1 output'))
+        if len(inlayer.output.shape) == 4:
+            if outlayer.__class__.__name__ not in CONV2D_TYPE_4_POOL:
+                CONV2D_TYPE_1_AVAILABLE_EDGES.append(edge)
+
+            if len(edges4_repo) == 0:
+                edges4_repo.append(edge)
+                edges4_output_repo.append(inlayer.output)
+            else:
+                output = edges4_output_repo[0]
+                if _dim4data_bigger(output.shape.as_list(), inlayer.output.shape.as_list()):
+                    if len(edges4_repo) > 1:
+                        CONV2D_TYPE_4_AVAILABLE_EDGES.append(tuple(edges4_repo))
+                    edges4_repo.clear()
+                    edges4_output_repo.clear()
+                else:
+                    if output.shape.as_list() != inlayer.output.shape.as_list():
+                        raise Exception(Cyan(f'Incorrect relationship between output.shape and inlayer.output\
+                            : output.shape.as_list() = {str(output.shape.as_list())} while \
+                                inlayer.output.as_list() = {str(inlayer.output.as_list())}'))
+                edges4_repo.append(edge)
+                edges4_output_repo.append(inlayer.output)
+
+        elif len(inlayer.output.shape) == 2:
+            if outlayer.__class__.__name__ not in CONV2D_TYPE_4_POOL:
+                CONV2D_TYPE_2_AVAILABLE_EDGES.append(edge)        
+            edges2_repo.append((edge, inlayer.output.shape[1], edges2_id))
+            edges2_id += 1
+        
+        CONV2D_TYPE_3_AVAILABLE_EDGES.append(edge)
+
+    if len(edges4_repo) > 1:
+        CONV2D_TYPE_4_AVAILABLE_EDGES.append(tuple(edges4_repo))
+    edges2_repo.sort(key=lambda x:(x[1], x[2]))
+    v_, tmp_edges = -1, []
+    for edge_, value_, id_ in edges2_repo:
+        if v_ != value_:
+            if len(tmp_edges) > 1:
+                CONV2D_TYPE_4_AVAILABLE_EDGES.append(tuple(tmp_edges))
+            tmp_edges.clear()
+            tmp_edges.append(edge_)
+            v_ = value_
+        else:
+            tmp_edges.append(edge_)
+
+    if len(tmp_edges) > 1:
+        CONV2D_TYPE_4_AVAILABLE_EDGES.append(tuple(tmp_edges))
+        
 
 def config_extraction():
     global MODELNAMES, MODE, ORIGIN_PATH, MUTANT_PATH, ORDERS, OPSPOOL, TOTALNUMBER, EACHNUMBER
@@ -99,7 +137,7 @@ def config_extraction():
 def extra_info_extraction():
     global CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL, CONV2D_TYPE_4_POOL
     for op in OPSPOOL:
-        if op in ['Conv2D', 'SeparableConv2D', 'AveragePooling2D', 'MaxPooling2D'\
+        if op in ['Conv2D', 'SeparableConv2D', 'AveragePooling2D', 'MaxPooling2D',\
             'SpatialDropout2D', 'SeparableConv2D', 'ZeroPadding2D', 'Cropping2D']:
             CONV2D_TYPE_1_POOL.append(op)
         elif op == 'Dense':
@@ -111,64 +149,4 @@ def extra_info_extraction():
         else:
             raise Exception(Cyan(f'Unkown op: {op}'))
 
-def _type1_heads_tails_extraction(layers):
-    global CONV2D_LAYERTYPE1_HEADS, CONV2D_LAYERTYPE1_TAILS
-    on = False
-    for i in range(len(layers)):
-        if i == 0:
-            on = True
-            CONV2D_LAYERTYPE1_HEADS.append(i)
-        else:
-            preLayer = layers[i-1]
-            if len(preLayer.output.shape) == 4:
-                if not on:
-                    on = True
-                    CONV2D_LAYERTYPE1_HEADS.append(i)
-            elif len(preLayer.output.shape) == 2:
-                if on:
-                    on = False
-                    CONV2D_LAYERTYPE1_TAILS.append(i)
-    print(Red('1'), CONV2D_LAYERTYPE1_HEADS, CONV2D_LAYERTYPE1_TAILS)
-    if CONV2D_LAYERTYPE1_TAILS == []:
-        raise Exception(Cyan('tails == []'))
-    if len(CONV2D_LAYERTYPE1_TAILS) != len(CONV2D_LAYERTYPE1_HEADS):
-        raise Exception(Cyan(f'heads length: {str(len(CONV2D_LAYERTYPE1_HEADS))}, tails length: {str(len(CONV2D_LAYERTYPE1_TAILS))}, they are inconsistent'))
 
-def _type2_heads_tails_extraction(layers):
-    global CONV2D_LAYERTYPE2_HEADS, CONV2D_LAYERTYPE2_TAILS
-    on = False
-    for i in range(len(layers)):
-        if i == 0:
-            pass
-        else:
-            preLayer = layers[i-1]
-            if len(preLayer.output.shape) == 2:
-                if not on:
-                    on = True
-                    CONV2D_LAYERTYPE2_HEADS.append(i)
-            elif len(preLayer.output.shape) == 4:
-                if on:
-                    on = False
-                    CONV2D_LAYERTYPE2_TAILS.append(i)
-    CONV2D_LAYERTYPE2_TAILS.append(len(layers))
-    print(Red('2'), CONV2D_LAYERTYPE2_HEADS, CONV2D_LAYERTYPE2_TAILS)
-    if CONV2D_LAYERTYPE2_TAILS == []:
-        raise Exception(Cyan('tails == []'))
-    if len(CONV2D_LAYERTYPE2_TAILS) != len(CONV2D_LAYERTYPE2_HEADS):
-        raise Exception(Cyan(f'heads length: {str(len(CONV2D_LAYERTYPE2_HEADS))}, tails length: {str(len(CONV2D_LAYERTYPE2_TAILS))}, they are inconsistent'))
-
-def _type3_heads_tails_extraction(layersNumber):
-    global CONV2D_LAYERTYPE3_HEADS, CONV2D_LAYERTYPE3_TAILS
-    CONV2D_LAYERTYPE3_HEADS.append(0)
-    CONV2D_LAYERTYPE3_TAILS.append(layersNumber)
-
-def _type4_heads_tails_extraction(layersNumber):
-    global CONV2D_LAYERTYPE4_HEADS, CONV2D_LAYERTYPE4_TAILS
-    CONV2D_LAYERTYPE4_HEADS.append(2)
-    CONV2D_LAYERTYPE4_TAILS.append(layersNumber)
-
-def type123_heads_tails_extraction(layers, layersNumber):
-    _type1_heads_tails_extraction(layers)
-    _type2_heads_tails_extraction(layers)
-    _type3_heads_tails_extraction(layersNumber)
-    _type4_heads_tails_extraction(layersNumber)

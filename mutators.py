@@ -305,7 +305,8 @@ def _addOneLayer_Conv2D_sequential(model, mode, op):
     return newmodel
 
 def _addOneLayer_Conv2D_functional_layerType4(layers, id):
-    pass
+    summand_num = np.random.randint(2, 5)
+     
 
 def _addOneLayer_Conv2D_functional(model, mode, op):
 
