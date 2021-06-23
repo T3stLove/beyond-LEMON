@@ -26,6 +26,11 @@ CONV2D_TYPE_3_AVAILABLE_EDGES = []
 CONV2D_TYPE_4_AVAILABLE_EDGES = []
 
 EDGES = []
+LAYER_CLASS_NAMES = {}
+INPUTLAYERS = []
+OUTPUTLAYERS = []
+
+CONV2D_TYPE_4_LAYERS = []
 
 def _isInputLayer(model, layer, id):
     if model.__class__.__name__ == 'Sequential':
@@ -36,21 +41,32 @@ def _isInputLayer(model, layer, id):
             return True
     return False
 
+def _isOutputLayer(layer):
+    if layer._outbound_nodes == []:
+        return True
+    return False 
+
 def edge_collection(model):
-    global EDGES
+    global EDGES, INPUTLAYERS
+    INPUTLAYERS = []
     layers = model.layers
     EDGES = []
-    visited = []
+    visited = {}
     q = queue.Queue()
     for id, layer in enumerate(layers):
         if _isInputLayer(model, layer, id):
+            INPUTLAYERS.append(layer)
             q.put(layer)
+        if _isOutputLayer(layer):
+            OUTPUTLAYERS.append(layer)
     
     while not q.empty():
         qlayer = q.get()
+        if qlayer.name in CONV2D_TYPE_4_LAYERS:
+            CONV2D_TYPE_4_LAYERS.append(qlayer)
         if qlayer.name in visited:
             continue
-        visited.append(qlayer.name)
+        visited[qlayer.name] = True
         for node in qlayer._outbound_nodes:
             q.put(node.outbound_layer)
             EDGES.append((qlayer, node.outbound_layer))
@@ -60,8 +76,89 @@ def _dim4data_bigger(data1, data2):
         return True
     return False
 
+def _dim4data_equal(data1, data2):
+    if data1[1] != data2[1] or data1[2] != data2[2] or data1[3] != data2[3]:
+        return False
+    return True
+
+# '''
+# type_4 layers have strict requirements on the consistency of input shapes
+# So we should first weed out the layers that we cannot insert 4-dimensional
+# shape-changed layers, such as Conv2d, to avoid the situation where
+# the resultant input shapes are inconsistent
+# '''
+# def _type4_influence():
+#     # layers before which we cannot insert 4-dimensional shape-changed layers
+#     forbid2_layers = set()
+#     visited = set()
+#     from queue import Queue
+#     q = Queue()
+
+#     for layer in CONV2D_TYPE_4_LAYERS:
+#         q.put(layer)
+#     while not q.empty():
+#         layer = q.get()
+#         forbid2_layers.add(layer)
+#         for node in layer._inbound_nodes:
+#             for l in node.inbound_layers:
+#                 if l in visited:
+#                     continue
+#                 visited.add(l)
+#                 if l.__class__.__name__ not in ['Conv2D', 'AveragePooling2D', \
+#                                             'MaxPooling2D', 'SeparableConv2D', \
+#                                                 'ZeroPadding2D', 'Cropping2D']:
+#                     q.put(l)
+
+def _certificate_for_adding_4_dimensional_shape_changed_layers():
+    from queue import Queue
+    q = Queue()
+    for layer in OUTPUTLAYERS:
+        q.put((layer, False))
+    certificate = set()
+    while not q.empty():
+        layer, cert = q.get()
+        if cert:
+            certificate.add(layer.name)
+        for node in layer._inbound_nodes:
+            if isinstance(node.inbound_layers, list):
+                for l in node.inbound_layers:
+                    if cert:
+                        if l.__class__.__name__ in ['Add', 'Concatenate', 'Average', 'Maximum', 'Minimum', 'Subtract', 'Multiply', 'Dot']:
+                            q.put((l, False))
+                        else:
+                            q.put((l, True))
+                    else:
+                        if l.__class__.__name__ in ['Conv2D', 'AveragePooling2D', 'MaxPooling2D', 'SeparableConv2D', 'DepthwiseConv2D']:
+                            q.put((l, True))
+                        else:
+                            q.put((l, False))
+            else:
+                l = node.inbound_layers
+                if cert:
+                    if l.__class__.__name__ in ['Add', 'Concatenate', 'Average', 'Maximum', 'Minimum', 'Subtract', 'Multiply', 'Dot']:
+                        q.put((l, False))
+                    else:
+                        q.put((l, True))
+                else:
+                    if l.__class__.__name__ in ['Conv2D', 'AveragePooling2D', 'MaxPooling2D', 'SeparableConv2D', 'DepthwiseConv2D']:
+                        q.put((l, True))
+                    else:
+                        q.put((l, False))
+    print('certificate: ', certificate)
+    return certificate
+
+
 def available_edges_extraction_for4types():
-    global EDGES
+
+    certificate = _certificate_for_adding_4_dimensional_shape_changed_layers()
+
+    global EDGES, CONV2D_TYPE_1_AVAILABLE_EDGES, CONV2D_TYPE_2_AVAILABLE_EDGES,\
+           CONV2D_TYPE_3_AVAILABLE_EDGES, CONV2D_TYPE_4_AVAILABLE_EDGES
+    CONV2D_TYPE_1_AVAILABLE_EDGES = []
+    CONV2D_TYPE_2_AVAILABLE_EDGES = []
+    CONV2D_TYPE_3_AVAILABLE_EDGES = []
+    CONV2D_TYPE_4_AVAILABLE_EDGES = []
+
     if EDGES == []:
         raise Exception(Cyan('Oops! EDGES is empty...'))
     edges4_repo = []
@@ -70,32 +167,37 @@ def available_edges_extraction_for4types():
     edges2_id = 0
     for edge in EDGES:
         inlayer, outlayer = edge
+        if isinstance(inlayer, keras.layers.InputLayer):
+            continue
+        if outlayer.__class__.__name__ in ['Add', 'Concatenate', 'Average', 'Maximum', 'Minimum', 'Subtract', 'Multiply', 'Dot']:
+            continue
         if isinstance(inlayer.output, list):
             raise Exception(Cyan(f'inlayer {inlayer.name} has more than 1 output'))
-        if len(inlayer.output.shape) == 4:
-            if outlayer.__class__.__name__ not in CONV2D_TYPE_4_POOL:
-                CONV2D_TYPE_1_AVAILABLE_EDGES.append(edge)
+        if len(outlayer.output.shape) == 4 and outlayer.name in certificate:
+            # if outlayer.__class__.__name__ not in CONV2D_TYPE_4_POOL and \
+            #     (len(outlayer.output.shape) == 4 and _dim4data_bigger(inlayer.output.shape, outlayer.output.shape)\
+            #         or len(outlayer.output.shape) == 2):
+            CONV2D_TYPE_1_AVAILABLE_EDGES.append(edge)
+                
 
             if len(edges4_repo) == 0:
                 edges4_repo.append(edge)
-                edges4_output_repo.append(inlayer.output)
+                edges4_output_repo.append(inlayer)
             else:
-                output = edges4_output_repo[0]
-                if _dim4data_bigger(output.shape.as_list(), inlayer.output.shape.as_list()):
+                output = edges4_output_repo[0].output
+                if not _dim4data_equal(output.shape.as_list(), inlayer.output.shape.as_list()):
                     if len(edges4_repo) > 1:
                         CONV2D_TYPE_4_AVAILABLE_EDGES.append(tuple(edges4_repo))
                     edges4_repo.clear()
                     edges4_output_repo.clear()
-                else:
-                    if output.shape.as_list() != inlayer.output.shape.as_list():
-                        raise Exception(Cyan(f'Incorrect relationship between output.shape and inlayer.output\
-                            : output.shape.as_list() = {str(output.shape.as_list())} while \
-                                inlayer.output.as_list() = {str(inlayer.output.as_list())}'))
+                # else:
+                #     if output.shape.as_list()[1:3] != inlayer.output.shape.as_list()[1:3]:
+                #         raise Exception(Cyan(f'Incorrect relationship between {str(edges4_output_repo[0].name)}.output.shape and {str(inlayer.name)}.output.shape: output.shape.as_list() = {str(output.shape.as_list())} while inlayer.output.shape.as_list() = {str(inlayer.output.shape.as_list())}'))
                 edges4_repo.append(edge)
-                edges4_output_repo.append(inlayer.output)
+                edges4_output_repo.append(inlayer)
 
         elif len(inlayer.output.shape) == 2:
-            if outlayer.__class__.__name__ not in CONV2D_TYPE_4_POOL:
+            if outlayer.__class__.__name__ not in ['Add', 'Concatenate', 'Average', 'Maximum', 'Minimum', 'Subtract', 'Multiply', 'Dot']:
                 CONV2D_TYPE_2_AVAILABLE_EDGES.append(edge)        
             edges2_repo.append((edge, inlayer.output.shape[1], edges2_id))
             edges2_id += 1
@@ -118,7 +220,6 @@ def available_edges_extraction_for4types():
 
     if len(tmp_edges) > 1:
         CONV2D_TYPE_4_AVAILABLE_EDGES.append(tuple(tmp_edges))
-        
 
 def config_extraction():
     global MODELNAMES, MODE, ORIGIN_PATH, MUTANT_PATH, ORDERS, OPSPOOL, TOTALNUMBER, EACHNUMBER

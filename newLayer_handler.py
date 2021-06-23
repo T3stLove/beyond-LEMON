@@ -14,45 +14,50 @@ def _myConv2DLayer_op_to_newlayer(op):
     elif op == 'LayerNormalization': return myLayerNormalizationLayer
     elif op == 'GaussianDropout': return myGaussianDropoutLayer
     elif op == 'Add': return myAddLayer
+    elif op == 'Minimum': return myMinimumLayer
+    elif op == 'Maximum': return myMaximumLayer
+    elif op == 'Average': return myAverageLayer
     elif op == 'ZeroPadding2D': return myZeroPadding2DLayer
     elif op == 'Cropping2D': return myCropping2DLayer
     else:
         raise Exception(Cyan(f'The op {op} does not correspond to any new layer.'))
     
 
-def _myConv2DLayer_indefinite_1(layer, inputshape, op, **indefinite_kwargs):
+def _myConv2DLayer_notcopy_1(layer, inputshape, op, **notcopy_kwargs):
 
     kerasLayer = _myConv2DLayer_op_to_newlayer(op)
     # UPDATE
     if kerasLayer in [myConv2DLayer, mySeparableConv2DLayer, myAveragePooling2DLayer, \
         myMaxPooling2DLayer]:
-        newlayer = kerasLayer(layer, inputshape, **indefinite_kwargs)
+        newlayer = kerasLayer(layer, inputshape, **notcopy_kwargs)
     elif kerasLayer in [myZeroPadding2DLayer, myCropping2DLayer]:
-        newlayer = kerasLayer(layer, **indefinite_kwargs)
+        newlayer = kerasLayer(layer, **notcopy_kwargs)
     else:
-         newlayer = kerasLayer(layer, definite=False)
+         newlayer = kerasLayer(layer, copy=False)
     return newlayer
 
-def _myConv2DLayer_indefinite_2(layer, inputshape):
-    return myDenseLayer(layer, inputshape, definite=False)
+def _myConv2DLayer_notcopy_2(layer, inputshape):
+    return myDenseLayer(layer, inputshape, copy=False)
 
-def _myConv2DLayer_indefinite_3(layer, inputshape, op):
+def _myConv2DLayer_notcopy_3(layer, inputshape, op, **notcopy_kwargs):
 
     kerasLayer = _myConv2DLayer_op_to_newlayer(op)
     
     if kerasLayer in [myDropoutLayer, myGaussianDropoutLayer]:
-        newlayer = kerasLayer(layer, definite=False)
+        newlayer = kerasLayer(layer, copy=False)
+    elif kerasLayer in [myBatchNormalizationLayer, myLayerNormalizationLayer]:
+        newlayer = kerasLayer(layer, inputshape, False, notcopy_kwargs['inlayer'])
     else:
-        newlayer = kerasLayer(layer, inputshape, definite=False)
+        newlayer = kerasLayer(layer, inputshape, copy=False)
     return newlayer
 
-def _myConv2DLayer_indefinite_4(layer, op):
+def _myConv2DLayer_notcopy_4(layer, op):
 
     kerasLayer = _myConv2DLayer_op_to_newlayer(op)
-    newlayer = kerasLayer(layer, definite=False)    
+    newlayer = kerasLayer(layer, copy=False)    
     return newlayer
 
-def _myConv2DLayer_definite(layer, inputshape):
+def _myConv2DLayer_copy(layer, inputshape):
     newlayer = None
     if isinstance(layer, keras.layers.Dense):
         newlayer = myDenseLayer(layer, inputshape)
@@ -76,36 +81,54 @@ def _myConv2DLayer_definite(layer, inputshape):
         newlayer = myGaussianDropoutLayer(layer)
     elif isinstance(layer, keras.layers.Add):
         newlayer = myAddLayer(layer)
+    elif isinstance(layer, keras.layers.Minimum):
+        newlayer = myMinimumLayer(layer)
+    elif isinstance(layer, keras.layers.Maximum):
+        newlayer = myMaximumLayer(layer)
+    elif isinstance(layer, keras.layers.Average):
+        newlayer = myAverageLayer(layer)
     elif isinstance(layer, keras.layers.Reshape):
         newlayer = myReshapeLayer(layer)
     elif isinstance(layer, keras.layers.SpatialDropout2D):
         newlayer = mySpatialDropout2DLayer(layer)
+    elif isinstance(layer, keras.layers.Activation):
+        newlayer = myActivationLayer(layer)
+    elif isinstance(layer, keras.layers.Concatenate):
+        newlayer = myConcatenateLayer(layer)
+    elif isinstance(layer, keras.layers.ReLU):
+        newlayer = myReluLayer(layer)
+    elif isinstance(layer, keras.layers.GlobalAveragePooling2D):
+        newlayer = myGlobalAveragePooling2DLayer(layer)
+    elif isinstance(layer, keras.layers.DepthwiseConv2D):
+        newlayer = myDepthwiseConv2DLayer(layer, inputshape)
+    elif isinstance(layer, keras.layers.ZeroPadding2D):
+        newlayer = myZeroPadding2DLayer(layer)
     if not newlayer:
         raise Exception(Cyan('newlayer is of unexpected type!'))
 
     return newlayer
     
 
-def myConv2dLayer(layer, definite, subType, inputshape, op, **indefinite_kwargs):
+def myConv2dLayer(layer, copy, subType, inputshape, op, **notcopy_kwargs):
 
-    if definite:
-        return _myConv2DLayer_definite(layer, inputshape)
+    if copy:
+        return _myConv2DLayer_copy(layer, inputshape)
     else:
         if subType == 1: 
-            return _myConv2DLayer_indefinite_1(layer, inputshape, op, **indefinite_kwargs)
+            return _myConv2DLayer_notcopy_1(layer, inputshape, op, **notcopy_kwargs)
         elif subType == 2:
-            return _myConv2DLayer_indefinite_2(layer, inputshape)
+            return _myConv2DLayer_notcopy_2(layer, inputshape)
         elif subType == 3:
-            return _myConv2DLayer_indefinite_3(layer, inputshape, op)
+            return _myConv2DLayer_notcopy_3(layer, inputshape, op, **notcopy_kwargs)
         elif subType == 4:
-            return _myConv2DLayer_indefinite_4(layer, op)
+            return _myConv2DLayer_notcopy_4(layer, op)
         else:
             raise Exception(Cyan('Unknown subType'))
 
-def myLayer(layer, modelType, definite, subType=None, inputshape=None, op=None, **indefinite_kwargs):
+def myLayer(layer, modelType, copy, subType=None, inputshape=None, op=None, **notcopy_kwargs):
 
     if modelType == 'conv2d':
-        return myConv2dLayer(layer, definite, subType, inputshape, op, **indefinite_kwargs)
+        return myConv2dLayer(layer, copy, subType, inputshape, op, **notcopy_kwargs)
 
     else:
         raise Exception(Cyan('Unknown modelType'))
