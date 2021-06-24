@@ -59,49 +59,49 @@ def _myConv2DLayer_notcopy_4(layer, op):
 
 def _myConv2DLayer_copy(layer, inputshape):
     newlayer = None
-    if isinstance(layer, keras.layers.Dense):
+    if layer.__class__.__name__ == 'Dense':
         newlayer = myDenseLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.Conv2D):
+    elif layer.__class__.__name__ == 'Conv2D':
         newlayer = myConv2DLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.AveragePooling2D):
+    elif layer.__class__.__name__ == 'AveragePooling2D':
         newlayer = myAveragePooling2DLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.Flatten):
+    elif layer.__class__.__name__ == 'Flatten':
         newlayer = myFlattenLayer(layer)
-    elif isinstance(layer, keras.layers.Dropout):
+    elif layer.__class__.__name__ == 'Dropout':
         newlayer = myDropoutLayer(layer)
-    elif isinstance(layer, keras.layers.MaxPooling2D):
+    elif layer.__class__.__name__ == 'MaxPooling2D':
         newlayer = myMaxPooling2DLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.BatchNormalization):
+    elif layer.__class__.__name__ == 'BatchNormalization':
         newlayer = myBatchNormalizationLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.LayerNormalization):
+    elif layer.__class__.__name__ == 'LayerNormalization':
         newlayer = myLayerNormalizationLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.SeparableConv2D):
+    elif layer.__class__.__name__ == 'SeparableConv2D':
         newlayer = mySeparableConv2DLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.GaussianDropout):
+    elif layer.__class__.__name__ == 'GaussianDropout':
         newlayer = myGaussianDropoutLayer(layer)
-    elif isinstance(layer, keras.layers.Add):
+    elif layer.__class__.__name__ == 'Add':
         newlayer = myAddLayer(layer)
-    elif isinstance(layer, keras.layers.Minimum):
+    elif layer.__class__.__name__ == 'Minimum':
         newlayer = myMinimumLayer(layer)
-    elif isinstance(layer, keras.layers.Maximum):
+    elif layer.__class__.__name__ == 'Maximum':
         newlayer = myMaximumLayer(layer)
-    elif isinstance(layer, keras.layers.Average):
+    elif layer.__class__.__name__ == 'Average':
         newlayer = myAverageLayer(layer)
-    elif isinstance(layer, keras.layers.Reshape):
+    elif layer.__class__.__name__ == 'Reshape':
         newlayer = myReshapeLayer(layer)
-    elif isinstance(layer, keras.layers.SpatialDropout2D):
+    elif layer.__class__.__name__ == 'SpatialDropout2D':
         newlayer = mySpatialDropout2DLayer(layer)
-    elif isinstance(layer, keras.layers.Activation):
+    elif layer.__class__.__name__ == 'Activation':
         newlayer = myActivationLayer(layer)
-    elif isinstance(layer, keras.layers.Concatenate):
+    elif layer.__class__.__name__ == 'Concatenate':
         newlayer = myConcatenateLayer(layer)
-    elif isinstance(layer, keras.layers.ReLU):
+    elif layer.__class__.__name__ == 'ReLU':
         newlayer = myReluLayer(layer)
-    elif isinstance(layer, keras.layers.GlobalAveragePooling2D):
+    elif layer.__class__.__name__ == 'GlobalAveragePooling2D':
         newlayer = myGlobalAveragePooling2DLayer(layer)
-    elif isinstance(layer, keras.layers.DepthwiseConv2D):
+    elif layer.__class__.__name__ == 'DepthwiseConv2D':
         newlayer = myDepthwiseConv2DLayer(layer, inputshape)
-    elif isinstance(layer, keras.layers.ZeroPadding2D):
+    elif layer.__class__.__name__ == 'ZeroPadding2D':
         newlayer = myZeroPadding2DLayer(layer)
     if not newlayer:
         raise Exception(Cyan('newlayer is of unexpected type!'))

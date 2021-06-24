@@ -17,7 +17,6 @@ def _test_mutant(mutant_path):
     print(Magenta('TEST SUCCEED!'))
 
 def run_random_mod(model, modelname):
-    # print('ORDERS = ', ORDERS)
     for order in ORDERS:
         for cnt in range(1, upperbound):
             if int(order) == 1:
@@ -103,7 +102,7 @@ if __name__ == '__main__':
         print(Green(modelname))
         modelpath = os.path.join(ORIGIN_PATH, f'{modelname}_origin.h5')
         model = keras.models.load_model(modelpath)
-        model.summary()
+        # model.summary()
         edge_collection(model)
         available_edges_extraction_for4types()
         if MODE == 'random':

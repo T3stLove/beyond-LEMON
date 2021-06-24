@@ -135,6 +135,7 @@ def myDepthwiseConv2DLayer(layer, inputshape):
             param_inputshape = inputshape
             config['dilation_rate'] = (1,1)
             config['strides'] = (1,1)
+            config['padding'] = 'valid'
     newlayer = keras.layers.DepthwiseConv2D.from_config(config)
     newlayer.build(param_inputshape)
     if setweights:
@@ -172,10 +173,10 @@ def myConv2DLayer(layer, inputshape, **indefinite_kwargs):
             param_inputshape = inputshape
             config['dilation_rate'] = (1,1)
             config['strides'] = (1,1)
+            config['padding'] = 'valid'
 
     newlayer = keras.layers.Conv2D.from_config(config)
     newlayer.build(param_inputshape)
-                            
     # print(Red(str([kernel_size[0], kernel_size[1], param_inputshape[-1], filters])))
     # newlayer.add_weight(shape=(kernel_size[0], kernel_size[1], param_inputshape[-1], filters), \
     #                     initializer="random_normal", trainable=True)
@@ -216,6 +217,7 @@ def mySeparableConv2DLayer(layer, inputshape, **indefinite_kwargs):
             param_inputshape = inputshape
             config['dilation_rate'] = (1,1)
             config['strides'] = (1,1)
+            config['padding'] = 'valid'
 
     newlayer = keras.layers.SeparableConv2D.from_config(config)
     newlayer.build(param_inputshape)

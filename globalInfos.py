@@ -47,11 +47,14 @@ def _isOutputLayer(layer):
     return False 
 
 def edge_collection(model):
-    global EDGES, INPUTLAYERS
+    global EDGES, INPUTLAYERS, OUTPUTLAYERS
     INPUTLAYERS = []
+    OUTPUTLAYERS = []
     layers = model.layers
     EDGES = []
-    visited = {}
+    layer_set = set()
+    visited = set()
+    CONV2D_TYPE_4_POOL_ALL = ['Add', 'Concatenate', 'Average', 'Maximum', 'Minimum', 'Subtract', 'Multiply', 'Dot']
     q = queue.Queue()
     for id, layer in enumerate(layers):
         if _isInputLayer(model, layer, id):
@@ -62,15 +65,35 @@ def edge_collection(model):
     
     while not q.empty():
         qlayer = q.get()
+        layer_set.add(qlayer.name)
+        # print(Green(qlayer.name))
         if qlayer.name in CONV2D_TYPE_4_LAYERS:
             CONV2D_TYPE_4_LAYERS.append(qlayer)
         if qlayer.name in visited:
             continue
-        visited[qlayer.name] = True
+        visited.add(qlayer.name)
         for node in qlayer._outbound_nodes:
-            q.put(node.outbound_layer)
-            EDGES.append((qlayer, node.outbound_layer))
-
+            layer_out = node.outbound_layer
+            if layer_out.__class__.__name__ not in CONV2D_TYPE_4_POOL_ALL:
+                q.put(layer_out)
+                EDGES.append((qlayer, layer_out))
+            else:
+                inputlayer_alltraversed = True
+                for node in layer_out._inbound_nodes:
+                    if isinstance(node.inbound_layers, list):
+                        for l in node.inbound_layers:
+                            if l.name not in layer_set:
+                                inputlayer_alltraversed = False
+                                break
+                    else:
+                        l = node.inbound_layers
+                        if l.name not in layer_set:
+                            inputlayer_alltraversed = False
+                            break
+                if inputlayer_alltraversed:
+                    q.put(layer_out)
+                    EDGES.append((qlayer, layer_out))
+    print(EDGES == [])
 def _dim4data_bigger(data1, data2):
     if data1[1] > data2[1] or data1[2] > data2[2]:
         return True
@@ -115,8 +138,12 @@ def _certificate_for_adding_4_dimensional_shape_changed_layers():
     for layer in OUTPUTLAYERS:
         q.put((layer, False))
     certificate = set()
+    visited = set()
     while not q.empty():
         layer, cert = q.get()
+        if layer.name in visited:
+            continue
+        visited.add(layer.name)
         if cert:
             certificate.add(layer.name)
         for node in layer._inbound_nodes:
@@ -128,7 +155,7 @@ def _certificate_for_adding_4_dimensional_shape_changed_layers():
                         else:
                             q.put((l, True))
                     else:
-                        if l.__class__.__name__ in ['Conv2D', 'AveragePooling2D', 'MaxPooling2D', 'SeparableConv2D', 'DepthwiseConv2D']:
+                        if l.__class__.__name__ in ['Conv2D', 'SeparableConv2D', 'DepthwiseConv2D']:
                             q.put((l, True))
                         else:
                             q.put((l, False))
@@ -140,13 +167,20 @@ def _certificate_for_adding_4_dimensional_shape_changed_layers():
                     else:
                         q.put((l, True))
                 else:
-                    if l.__class__.__name__ in ['Conv2D', 'AveragePooling2D', 'MaxPooling2D', 'SeparableConv2D', 'DepthwiseConv2D']:
+                    if l.__class__.__name__ in ['Conv2D', 'SeparableConv2D', 'DepthwiseConv2D']:
                         q.put((l, True))
                     else:
                         q.put((l, False))
-    print('certificate: ', certificate)
     return certificate
 
+def inlayer_not_exists(edges4_repo, inlayer):
+    if edges4_repo == []:
+        return True
+    for edge in edges4_repo:
+        if edge[0].name == inlayer.name:
+            return False
+
+    return True
 
 def available_edges_extraction_for4types():
 
@@ -174,12 +208,8 @@ def available_edges_extraction_for4types():
         if isinstance(inlayer.output, list):
             raise Exception(Cyan(f'inlayer {inlayer.name} has more than 1 output'))
         if len(outlayer.output.shape) == 4 and outlayer.name in certificate:
-            # if outlayer.__class__.__name__ not in CONV2D_TYPE_4_POOL and \
-            #     (len(outlayer.output.shape) == 4 and _dim4data_bigger(inlayer.output.shape, outlayer.output.shape)\
-            #         or len(outlayer.output.shape) == 2):
             CONV2D_TYPE_1_AVAILABLE_EDGES.append(edge)
-                
-
+            
             if len(edges4_repo) == 0:
                 edges4_repo.append(edge)
                 edges4_output_repo.append(inlayer)
@@ -193,8 +223,9 @@ def available_edges_extraction_for4types():
                 # else:
                 #     if output.shape.as_list()[1:3] != inlayer.output.shape.as_list()[1:3]:
                 #         raise Exception(Cyan(f'Incorrect relationship between {str(edges4_output_repo[0].name)}.output.shape and {str(inlayer.name)}.output.shape: output.shape.as_list() = {str(output.shape.as_list())} while inlayer.output.shape.as_list() = {str(inlayer.output.shape.as_list())}'))
-                edges4_repo.append(edge)
-                edges4_output_repo.append(inlayer)
+                if inlayer_not_exists(edges4_repo, inlayer):
+                    edges4_repo.append(edge)
+                    edges4_output_repo.append(inlayer)
 
         elif len(inlayer.output.shape) == 2:
             if outlayer.__class__.__name__ not in ['Add', 'Concatenate', 'Average', 'Maximum', 'Minimum', 'Subtract', 'Multiply', 'Dot']:

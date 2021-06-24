@@ -117,7 +117,6 @@ def _decideConv2DOrPoolingParams(op, minimage_d1, minimage_d2, image_d1, image_d
 
 
 def _addOneLayer_Conv2D_addConv2DOrPooling(layer, layerType, mode, op):
-    print(layer.name)
     inputshape = layer.input.shape
     image_d1 = inputshape[1]
     image_d2 = inputshape[2]
@@ -227,15 +226,17 @@ def _addOneLayer_Conv2D_decide_layerType(mode, op):
     
     if mode == 'random':
         layerTypes = []
-        from globalInfos import CONV2D_TYPE_1_POOL, CONV2D_TYPE_2_POOL, CONV2D_TYPE_3_POOL, CONV2D_TYPE_4_POOL
-        if CONV2D_TYPE_1_POOL: layerTypes.append(1)
-        if CONV2D_TYPE_2_POOL: layerTypes.append(2)
-        if CONV2D_TYPE_3_POOL: layerTypes.append(3)
-        if CONV2D_TYPE_4_POOL: layerTypes.append(4)
+        from globalInfos import CONV2D_TYPE_1_AVAILABLE_EDGES,\
+                            CONV2D_TYPE_2_AVAILABLE_EDGES,\
+                            CONV2D_TYPE_3_AVAILABLE_EDGES,\
+                            CONV2D_TYPE_4_AVAILABLE_EDGES
+        if CONV2D_TYPE_1_AVAILABLE_EDGES: layerTypes.append(1)
+        if CONV2D_TYPE_2_AVAILABLE_EDGES: layerTypes.append(2)
+        if CONV2D_TYPE_3_AVAILABLE_EDGES: layerTypes.append(3)
+        if CONV2D_TYPE_4_AVAILABLE_EDGES: layerTypes.append(4)
         layerType = np.random.choice(layerTypes)
     elif mode == 'fixed':
-        layerType = _addOneLayer_Conv2D_analyze_layerType(op)  
-        # print('op = ', op, ' layerType = ', layerType)
+        layerType = _addOneLayer_Conv2D_analyze_layerType(op)
     else:
         raise Exception(Cyan(f'Unkown mode: {mode}'))
     return layerType
@@ -245,20 +246,24 @@ def _addOneLayer_Conv2D_decide_inLayers_outLayer_crop_edge(layerType):
                             CONV2D_TYPE_2_AVAILABLE_EDGES,\
                             CONV2D_TYPE_3_AVAILABLE_EDGES,\
                             CONV2D_TYPE_4_AVAILABLE_EDGES
+    print(Red(f'layerType: {str(layerType)}'))
     available_edges = [CONV2D_TYPE_1_AVAILABLE_EDGES,\
                        CONV2D_TYPE_2_AVAILABLE_EDGES,\
                        CONV2D_TYPE_3_AVAILABLE_EDGES,\
                        CONV2D_TYPE_4_AVAILABLE_EDGES][layerType-1]
+    
+    # print('1', CONV2D_TYPE_1_AVAILABLE_EDGES)
+    # print('2', CONV2D_TYPE_2_AVAILABLE_EDGES)
+    # print('3', CONV2D_TYPE_3_AVAILABLE_EDGES)
+    # print('4', CONV2D_TYPE_4_AVAILABLE_EDGES)
 
     randID = np.random.randint(0, len(available_edges))
-    randID = 4
+    # randID = 2
     print(Blue(f'randID = {str(randID)}'))
     selected_edges = available_edges[randID]
-    print('layerType:', layerType)
     if layerType != 4:
         inLayers = [selected_edges[0]]
         outLayer = selected_edges[1]
-        # print('=================',outLayer.input)
         crop_edge = selected_edges
     else:
         inLayers = []
@@ -311,10 +316,6 @@ def _addOneLayer_Conv2D_init_q_inputs():
 def _addOneLayer_Conv2D(model, mode, op):
     layerType = _addOneLayer_Conv2D_decide_layerType(mode, op)
     inLayers, outLayer, crop_edge = _addOneLayer_Conv2D_decide_inLayers_outLayer_crop_edge(layerType)
-    print('outLayer.name:', outLayer.name)
-    print('inLayers: ', len(inLayers))
-    for inlayer in inLayers:
-        print('>>>', inlayer.name)
     newlayer = _addOneLayer_Conv2D_addOperation(outLayer, layerType, mode, op, inLayers[0])
     
     decide_data_form(model.layers)
@@ -328,9 +329,9 @@ def _addOneLayer_Conv2D(model, mode, op):
 
     while not q.empty():
         qlayer, output = q.get()
-        print(Magenta(f'qlayer.name: {qlayer.name}'))
-        # print(Magenta(str(output.shape)))
+        print(Yellow(qlayer.name))
         outputs_dict[qlayer.name] = output
+        print(Blue(str(output.shape)))
         if qlayer.name in visited:
             continue
         visited[qlayer.name] = True
@@ -343,28 +344,35 @@ def _addOneLayer_Conv2D(model, mode, op):
                 invalues = output
         for node in qlayer._outbound_nodes:
             layer_out = node.outbound_layer
-            print(Red(f'layer_out.name: {layer_out.name}'))
+            print(Red(layer_out.name))
             if layer_out.name == outLayer.name:
-                print(Green('yes'))
-                print('len(invalues): ', len(invalues))
+                print(Green('insert!'))
                 output = newlayer(invalues)
-                layer_out_ = myLayer(layer_out, modelType='conv2d', copy=True, inputshape=output.shape)
-            else:
-
-                if layer_out.__class__.__name__  not in ['Conv2D', 'AveragePooling2D', 'MaxPooling2D', 'SeparableConv2D', 'DepthwiseConv2D'] or \
-                    output.shape == layer_out.input.shape:
-                    layer_out_ = layer_out.__class__.from_config(layer_out.get_config())
-                    if layer_out.get_weights() != []:
-                        layer_out_.build(layer_out.input.shape)
-                        layer_out_.set_weights(layer_out.get_weights())
-                else:
-                    layer_out_ = myLayer(layer_out, modelType='conv2d', copy=True, inputshape=output.shape) 
-            # print(layer_out.__class__.__name__, layer_out.__class__.__name__ in CONV2D_TYPE_4_POOL_ALL)
+                # layer_out_ = myLayer(layer_out, modelType='conv2d', copy=True, inputshape=output.shape)
+            # else:
+                # if layer_out.__class__.__name__  not in ['Conv2D', 'AveragePooling2D', 'MaxPooling2D', 'SeparableConv2D', 'DepthwiseConv2D'] or \
+                #     output.shape == layer_out.input.shape:
+                #     print('?')
+                #     layer_out_ = layer_out.__class__.from_config(layer_out.get_config())
+                #     if layer_out.get_weights() != []:
+                #         layer_out_.build(layer_out.input.shape)
+                #         layer_out_.set_weights(layer_out.get_weights())
+                # else:
+            layer_out_ = myLayer(layer_out, modelType='conv2d', copy=True, inputshape=output.shape) 
             if layer_out.__class__.__name__ in CONV2D_TYPE_4_POOL_ALL:
                 tmp_inputs = []
                 inputlayer_alltraversed = True
                 for node in layer_out._inbound_nodes:
-                    for l in node.inbound_layers:
+                    if isinstance(node.inbound_layers, list):
+                        for l in node.inbound_layers:
+                            if l.name != qlayer.name:
+                                if l.name in outputs_dict:
+                                    tmp_inputs.append(outputs_dict[l.name])
+                                else:
+                                    inputlayer_alltraversed = False
+                                    break
+                    else:
+                        l = node.inbound_layers
                         if l.name != qlayer.name:
                             if l.name in outputs_dict:
                                 tmp_inputs.append(outputs_dict[l.name])
@@ -374,8 +382,6 @@ def _addOneLayer_Conv2D(model, mode, op):
                     tmp_inputs.append(output)
                     q.put((layer_out, layer_out_(tmp_inputs)))
             else:
-                # print(Yellow(str(output.shape)))
                 q.put((layer_out, layer_out_(output)))
-    # print(inputs, outputs)
     newmodel = keras.Model(inputs=inputs, outputs=outputs)
     return newmodel
